@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<section name="org.eclipse.ltk.ui.refactoring.settings">
+	</section>
+	<section name="FatJarPackageWizard">
+		<item value="/Users/muiadmin/Documents/DeltaIoT-sources.xml" key="FatJarPackageWizardPage.ANTSCRIPT_LOCATION"/>
+		<item value="DeltaIoTEmulatorMain - SimulatorGUI" key="FatJarPackageWizardPage.LAUNCH_CONFIGURATION_SELECTION_NAME"/>
+		<item value="/Users/muiadmin/Documents/DeltaIoT/DeltaIoT-executables/Simulation/SimulatorGUI.jar" key="FatJarPackageWizardPage.DESTINATION_PATH_SELECTION"/>
+		<item value="false" key="FatJarPackageWizardPage.ANTSCRIPT_SAVE"/>
+		<item value="2" key="FatJarPackageWizardPage.LIBRARY_HANDLING"/>
+		<list key="FatJarPackageWizardPage.DESTINATION_NAMES_ID">
+			<item value="/Users/muiadmin/Documents/DeltaIoT/DeltaIoT-executables/Simulation/SimulatorGUI.jar"/>
+			<item value="/Users/muiadmin/Documents/DeltaIoT/DeltaIoT-executables/Simulation/Simulator.jar"/>
+			<item value="/Users/muiadmin/Documents/DeltaIoT/DeltaIoT-executables/Simulation/SimpleAdapterWithSimulation.jar"/>
+			<item value="/Users/muiadmin/Documents/DeltaIoT/DeltaIoT-executables/DeltaIoT/SimpleAdaptationWithDeltaIoT.jar"/>
+			<item value="/Users/muiadmin/Documents/DeltaIoT/DeltaIoT-executables/DeltaIoT/DeltaIoTGUI.jar"/>
+			<item value="/Users/muiadmin/Documents/DeltaIoT/DeltaIoT-executables/DeltaIoT/DeltaIoTClient.jar"/>
+			<item value="/Users/muiadmin/Documents/DeltaIoT/DeltaIoT-executables/DeltaIoTGUI.jar"/>
+		</list>
+		<list key="FatJarPackageWizardPage.ANTSCRIPT_LOCATION_HISTORY">
+			<item value="/Users/muiadmin/Documents/DeltaIoT-sources.xml"/>
+			<item value=".xml"/>
+		</list>
+	</section>
+	<section name="RenameInformationPopup">
+	</section>
+	<section name="OptionalMessageDialog.hide.">
+	</section>
+	<section name="quick_assist_proposal_size">
+	</section>
+	<section name="BuildPathsPropertyPage">
+		<item value="1" key="pageIndex"/>
+	</section>
+	<section name="completion_proposal_size">
+	</section>
+	<section name="JavaElementSearchActions">
+	</section>
+</section>

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename type &apos;main.SimpleClient&apos; to &apos;SimpleAdaptation&apos;&#x0A;- Original project: &apos;SimpleAdaptationWithSimulation&apos;&#x0A;- Original element: &apos;main.SimpleClient&apos;&#x0A;- Renamed element: &apos;main.SimpleAdaptation&apos;&#x0A;- Update references to refactored element&#x0A;- Update textual occurrences in comments and strings" description="Rename type &apos;SimpleClient&apos;" flags="589830" id="org.eclipse.jdt.ui.rename.type" input="/src&lt;main{SimpleClient.java[SimpleClient" matchStrategy="1" name="SimpleAdaptation" qualified="false" references="true" similarDeclarations="false" stamp="1489253517495" textual="false" version="1.0"/>
+</session>
