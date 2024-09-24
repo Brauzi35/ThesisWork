@@ -16,7 +16,8 @@ public class Simulator {
 	private List<QoS> qosValues = new ArrayList<>();
 	
 	// Constructor
-	public Simulator() { }
+	public Simulator() {
+	}
 	
 	// Pre-build simulators
 	

@@ -21,6 +21,8 @@ public class SimulationClient implements Probe, Effector {
 	List<String> log = new LinkedList<String>();
 	
 	public SimulationClient(){
+		System.out.println("hey this should not appear SimulationClient");
+
 		this.simulator = deltaiot.DeltaIoTSimulator.createSimulatorForDeltaIoT();
 	}
 	

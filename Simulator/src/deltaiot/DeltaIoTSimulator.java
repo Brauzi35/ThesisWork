@@ -38,6 +38,7 @@ public class DeltaIoTSimulator {
 	Simulator simul;
 	
 	public DeltaIoTSimulator() {
+		System.out.println("hey this should not appear");
 		this.simul = createSimulatorForDeltaIoT();
 	}
 	
