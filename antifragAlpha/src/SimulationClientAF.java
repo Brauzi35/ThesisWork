@@ -26,7 +26,6 @@ public class SimulationClientAF implements Probe, Effector {
 
     private Simulator simulator;
     public SimulationClientAF(Case c, int x, int y, double battery, int load, int neighId){
-        System.out.println("pre createSimulatorForAF");
         switch (c){
             case DEFAULT: this.simulator = NetworkSimulatorAF.createSimulatorForAF();
             break;

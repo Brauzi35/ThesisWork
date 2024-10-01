@@ -1,0 +1,170 @@
+package LearningAF;
+
+
+
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+
+import deltaiot.client.Effector;
+import deltaiot.client.Probe;
+import deltaiot.services.Link;
+import deltaiot.services.LinkSettings;
+import deltaiot.services.Mote;
+
+import mapek.*;
+
+
+public class ReactiveAF {
+
+    /**
+     * feedback loop created to perform preventive adaptation
+     */
+
+    Probe probe;
+    Effector effector;
+
+    // Knowledge
+    ArrayList<Mote> motes;
+    List<PlanningStep> steps = new LinkedList<>();
+    private int change_power_cnst;
+    private int change_distribution_cnst;
+
+
+    public ReactiveAF(int change_power_cnst, int change_distribution_cnst) {
+        this.change_power_cnst = change_power_cnst;
+        this.change_distribution_cnst = change_distribution_cnst;
+    }
+
+    public void setProbe(Probe probe) {
+        this.probe = probe;
+    }
+
+    public void setEffector(Effector effector) {
+        this.effector = effector;
+    }
+
+    public void start() {
+        for (int i = 0; i < 95; i++) {
+            monitor();
+        }
+    }
+
+    void monitor() {
+        motes = probe.getAllMotes();
+
+        // perform analysis
+        analysis();
+    }
+
+    void analysis() {
+
+        // analyze all link settings
+        boolean adaptationRequired = analyzeLinkSettings();
+
+        // if adaptation required invoke the planner
+        if (adaptationRequired) {
+            planning();
+        }
+    }
+
+    boolean analyzeLinkSettings() {
+        // analyze all links for possible adaptation options
+        for (Mote mote : motes) {
+            for (Link link : mote.getLinks()) {
+                if (link.getSNR() > 0 && link.getPower() > 0 || link.getSNR() < 0 && link.getPower() < 15) {
+                    return true;
+                }
+            }
+            if (mote.getLinks().size() == 2) {
+                if (mote.getLinks().get(0).getPower() != mote.getLinks().get(1).getPower())
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    void planning() {
+
+        // Go through all links
+        boolean powerChanging = false;
+        Link left, right;
+        for (Mote mote : motes) {
+            for (Link link : mote.getLinks()) {
+                powerChanging = false;
+                if (link.getSNR() > 0 && link.getPower() > 0) {
+                    steps.add(new PlanningStep(Step.CHANGE_POWER, link, link.getPower() - change_power_cnst));
+                    powerChanging = true;
+                } else if (link.getSNR() < 0 && link.getPower() < 15) {
+                    steps.add(new PlanningStep(Step.CHANGE_POWER, link, link.getPower() + change_power_cnst));
+                    powerChanging = true;
+                }
+            }
+            if (mote.getLinks().size() == 2 && powerChanging == false) {
+                left = mote.getLinks().get(0);
+                right = mote.getLinks().get(1);
+                if (left.getPower() != right.getPower()) {
+                    // If distribution of all links is 100 then change it to 50
+                    // 50
+                    if (left.getDistribution() == 100 && right.getDistribution() == 100) {
+                        left.setDistribution(50);
+                        right.setDistribution(50);
+                    }
+                    if (left.getPower() > right.getPower() && left.getDistribution() < 100) {
+                        steps.add(new PlanningStep(Step.CHANGE_DIST, left, left.getDistribution() + change_distribution_cnst));
+                        steps.add(new PlanningStep(Step.CHANGE_DIST, right, right.getDistribution() - change_distribution_cnst));
+                    } else if (right.getDistribution() < 100) {
+                        steps.add(new PlanningStep(Step.CHANGE_DIST, right, right.getDistribution() + change_distribution_cnst));
+                        steps.add(new PlanningStep(Step.CHANGE_DIST, left, left.getDistribution() - change_distribution_cnst));
+                    }
+                }
+            }
+        }
+
+        if (steps.size() > 0) {
+            execution();
+        }
+    }
+
+    void execution() {
+        boolean addMote;
+        List<Mote> motesEffected = new LinkedList<Mote>();
+        for (Mote mote : motes) {
+            addMote = false;
+            for (PlanningStep step : steps) {
+                if (step.link.getSource() == mote.getMoteid()) {
+                    addMote = true;
+                    if (step.step == Step.CHANGE_POWER) {
+                        mote.getLinkWithDest(step.link.getDest()).setPower(step.value);
+                    } else if (step.step == Step.CHANGE_DIST) {
+                        mote.getLinkWithDest(step.link.getDest()).setDistribution(step.value);
+                    }
+                }
+            }
+            motesEffected.add(mote);
+        }
+        List<LinkSettings> newSettings;
+
+        for(Mote mote: motesEffected){
+            newSettings = new LinkedList<LinkSettings>();
+            for(Link link: mote.getLinks()){
+                newSettings.add(new LinkSettings(mote.getMoteid(), link.getDest(), link.getPower(), link.getDistribution(), link.getSF()));
+            }
+            effector.setMoteSettings(mote.getMoteid(), newSettings);
+        }
+        steps.clear();
+    }
+
+
+
+    Mote findMote(int source, int destination) {
+        for (Mote mote : motes) {
+            if (mote.getMoteid() == source) {
+                return mote;
+            }
+        }
+        return null;
+    }
+
+
+}

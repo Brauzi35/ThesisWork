@@ -10,7 +10,7 @@ public class NetworkSimulatorAF extends DeltaIoTSimulator {
     public static Simulator createSimulatorForAF(){
 
         Simulator simul = new Simulator();
-        System.out.println("post simulator");
+        //System.out.println("post simulator");
         // Motes
         int load = 10; //number of packets to send in a turn; default ws 10
         double battery = 11880.0; //default was 11880.0

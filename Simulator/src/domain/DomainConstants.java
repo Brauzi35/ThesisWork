@@ -27,6 +27,15 @@ public final class DomainConstants {
 	public static final int receptionTime = 4;
 	
 	public static double getPowerConsumptionRate(int number) {
+		//System.out.println("number: "+number + " powerConsuptionRate: "+powerConsumptionRate[number]);
+		//questo lo metto io
+		//TODO migliora questa decisione, per ora sto soltanto mettendo dei bound, sarebbe meglio capire perché vengono generati number<0
+		if(number > 15){
+			number = 15;
+		}
+		if(number < 0){
+			number = 0;
+		}
 		return powerConsumptionRate[number];
 	}
 	

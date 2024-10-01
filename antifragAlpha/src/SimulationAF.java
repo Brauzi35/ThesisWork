@@ -134,7 +134,7 @@ public class SimulationAF {
         feedbackLoop.start(); //Start fa partire il loop
 
         ArrayList<QoS> result = networkMgmt.getNetworkQoS(96);
-        writeQoSToCSV(result, "simulationAFData/run"+i+"_neighbour"+neigh+".csv");
+        writeQoSToCSV(result, "SimulationAFDataC1/run"+i+"_neighbour"+neigh+".csv");
         System.out.println("Run, PacketLoss, EnergyConsumption");
         result.forEach(qos -> System.out.println(qos));
 
@@ -144,7 +144,7 @@ public class SimulationAF {
         }
 
         ArrayList<Mote> motes = networkMgmt.getAllMotes();
-        writeMotesToCsv(motes, "simulationAFData/motes_data"+i+"_neighbour"+neigh+".csv");
+        writeMotesToCsv(motes, "SimulationAFDataC1/motes_data"+i+"_neighbour"+neigh+".csv");
 
 
     }
@@ -158,14 +158,14 @@ public class SimulationAF {
         //SimulationAF client = new SimulationAF();
         //client.start(SimulationClientAF.Case.DEFAULT);
         FindPositionAndNeighbour fpn = new FindPositionAndNeighbour();
-        for (int i = 0; i<2; i++){
+        for (int i = 0; i<100; i++){
 
             SimulationAF client = new SimulationAF();
 
             Point2D point2D = getPosition();
             int neigh = findClosestNode(point2D);
 
-            client.initC1(SimulationClientAF.Case.CASE1, (int)point2D.getX(), (int)point2D.getY(), 118800.0, 100, neigh);
+            client.initC1(SimulationClientAF.Case.CASE1, (int)point2D.getX(), (int)point2D.getY(), 118800.0, 200, neigh);
             client.start(SimulationClientAF.Case.CASE1, i, neigh);
         }
     }
