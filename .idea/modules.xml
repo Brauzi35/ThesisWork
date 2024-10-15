@@ -3,7 +3,6 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/DeltaIoT-source.iml" filepath="$PROJECT_DIR$/.idea/DeltaIoT-source.iml" />
-      <module fileurl="file://$PROJECT_DIR$/antifragAlpha/antifragAlpha.iml" filepath="$PROJECT_DIR$/antifragAlpha/antifragAlpha.iml" />
     </modules>
   </component>
 </project>

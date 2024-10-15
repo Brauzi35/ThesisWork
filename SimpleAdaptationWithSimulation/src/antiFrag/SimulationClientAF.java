@@ -1,7 +1,8 @@
+package antiFrag;
+
 import deltaiot.DeltaIoTSimulator;
 import deltaiot.client.Effector;
 import deltaiot.client.Probe;
-import deltaiot.client.SimulationClient;
 import deltaiot.services.LinkSettings;
 import deltaiot.services.Mote;
 import domain.Link;
@@ -50,7 +51,7 @@ public class SimulationClientAF implements Probe, Effector {
     public ArrayList<Mote> getAllMotes() {
         simulator.doSingleRun();
         List<domain.Mote> motes = simulator.getMotes();
-        ArrayList<deltaiot.services.Mote> afMotes = new ArrayList<>();
+        ArrayList<Mote> afMotes = new ArrayList<>();
         for (domain.Mote mote : motes) {
             afMotes.add(DeltaIoTSimulator.getAfMote(mote, simulator));
         }
@@ -61,10 +62,10 @@ public class SimulationClientAF implements Probe, Effector {
         return simulator.getMoteWithId(moteId);
     }
 
-    private domain.Link getLink(int src, int dest) {
+    private Link getLink(int src, int dest) {
         domain.Mote from = simulator.getMoteWithId(src);
         Node to = simulator.getNodeWithId(dest);
-        domain.Link link = from.getLinkTo(to);
+        Link link = from.getLinkTo(to);
         return link;
     }
 

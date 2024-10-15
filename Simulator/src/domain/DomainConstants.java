@@ -30,6 +30,7 @@ public final class DomainConstants {
 		//System.out.println("number: "+number + " powerConsuptionRate: "+powerConsumptionRate[number]);
 		//questo lo metto io
 		//TODO migliora questa decisione, per ora sto soltanto mettendo dei bound, sarebbe meglio capire perché vengono generati number<0
+		//il problema si è verificato quando ho alterato i valori della rete
 		if(number > 15){
 			number = 15;
 		}

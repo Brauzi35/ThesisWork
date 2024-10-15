@@ -4,11 +4,16 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
+import antiFrag.SimulationClientAF;
+import antiFrag.TwinInterrogation;
 import deltaiot.client.Effector;
 import deltaiot.client.Probe;
+import deltaiot.client.SimulationClient;
 import deltaiot.services.Link;
 import deltaiot.services.LinkSettings;
 import deltaiot.services.Mote;
+import simulator.Simulator;
+
 
 public class FeedbackLoop {
 
@@ -127,7 +132,7 @@ public class FeedbackLoop {
 			motesEffected.add(mote);
 		}
 		List<LinkSettings> newSettings;
-		
+
 		for(Mote mote: motesEffected){
 			newSettings = new LinkedList<LinkSettings>();
 			for(Link link: mote.getLinks()){
@@ -138,7 +143,7 @@ public class FeedbackLoop {
 		steps.clear();
 	}
 
-	
+
 
 	Mote findMote(int source, int destination) {
 		for (Mote mote : motes) {

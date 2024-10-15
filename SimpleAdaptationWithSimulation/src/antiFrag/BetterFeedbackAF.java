@@ -1,5 +1,7 @@
-import LearningAF.ReactiveAF;
-import Position.FindPositionAndNeighbour;
+package antiFrag;
+
+import antiFrag.LearningAF.ReactiveAF;
+import antiFrag.Position.FindPositionAndNeighbour;
 import deltaiot.client.Effector;
 import deltaiot.client.Probe;
 import deltaiot.services.Mote;
@@ -16,8 +18,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-import static Position.FindPositionAndNeighbour.findClosestNode;
-import static Position.FindPositionAndNeighbour.getPosition;
+import static antiFrag.Position.FindPositionAndNeighbour.findClosestNode;
+import static antiFrag.Position.FindPositionAndNeighbour.getPosition;
+
 
 public class BetterFeedbackAF {
 
@@ -120,6 +123,7 @@ public class BetterFeedbackAF {
 
     public ArrayList<QoS> start(SimulationClientAF.Case c, int j, int d, boolean firstTime, ArrayList<QoS> bestResult){
 
+        System.out.println("start!"+d+j);
         int[] pwrs = {1, 2, 3, 4, 5};
         int[] dists = {10, 20, 30, 40, 50};
 
@@ -133,6 +137,7 @@ public class BetterFeedbackAF {
         // get probe and effectors
         Probe probe = networkMgmt.getProbe();
         Effector effector = networkMgmt.getEffector();
+
 
         // Connect probe and effectors with feedback loop
         feedbackLoop.setProbe(probe);
@@ -297,6 +302,7 @@ public class BetterFeedbackAF {
     public static void main(String[] args) {
         //SimulationAF client = new SimulationAF();
         //client.start(SimulationClientAF.Case.DEFAULT);
+        System.out.println("entrato nel main");
         FindPositionAndNeighbour fpn = new FindPositionAndNeighbour();
         for (int i = 0; i<100; i++){
             Point2D point2D = getPosition();
