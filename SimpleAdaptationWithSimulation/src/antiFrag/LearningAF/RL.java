@@ -47,58 +47,50 @@ public class RL {
         int currentState = random.nextInt(stateCount);
         List<Move> moves = new ArrayList<>();
 
-        int currentPowerAdd = 1; // Inizializza a 1 per garantire valori positivi
-        int currentPowerSub = 1; // Inizializza a 1 per garantire valori positivi
-        int currentDistribution = 1; // Inizializza a 1 per garantire valori positivi
-
-        for (int time = 0; time < 1000; ++time) {
+        for (int time = 0; time < 5000; ++time) {
             Point2D point2D = getPosition();
-            int neigh = findClosestNode(point2D); //voglio anche questo nello stato
+            int neigh = findClosestNode(point2D);
             System.out.println("neighbour is: " + neigh);
             SimulationClientAF sc = new SimulationClientAF(SimulationClientAF.Case.CASE1, (int) point2D.getX(), (int) point2D.getY(), 118800.0, 200, neigh);
 
-            // Modifica per usare epsilon-greedy esplorazione:
+            // Esplorazione epsilon-greedy
             int actionId;
             if (random.nextDouble() < epsilon) {
-                // Esplora una nuova azione casualmente
                 actionId = random.nextInt(actionCount);
                 System.out.println("Agent explores with action-" + actionId);
             } else {
-                // Sfrutta l'azione migliore conosciuta
                 actionId = agent.selectAction(currentState).getIndex();
                 System.out.println("Agent exploits with action-" + actionId);
             }
 
-            // Decodifica l'azione per determinare le modifiche alla potenza e distribuzione
-            int powerAdd = decodePowerAdd(actionId);
-            int powerSub = decodePowerSub(actionId);
-            int distributionChange = decodeDistributionChange(actionId);
+            // Decodifica dell'azione per ottenere i valori per powerAdd, powerSub e distributionChange
+            int powerAdd = decodePowerAdd(actionId);   // L'agente sceglie direttamente powerAdd
+            int powerSub = decodePowerSub(actionId);   // L'agente sceglie direttamente powerSub
+            int distributionChange = decodeDistributionChange(actionId);  // L'agente sceglie direttamente distributionChange
 
-            // Create a simulation client object
+            // Assegna direttamente i valori decisi dall'agente
+            int currentPowerAdd = powerAdd;
+            int currentPowerSub = powerSub;
+            int currentDistribution = distributionChange;
+
+            // Crea l'oggetto di simulazione
             SimulationClient networkMgmt = new SimulationClient(sc.getSimulator());
 
-            // Create Feedback loop
+            // Feedback loop e connessione a probe/effector
             FeedbackLoopRL feedbackLoop = new FeedbackLoopRL();
-
-            // get probe and effectors
             Probe probe = networkMgmt.getProbe();
             Effector effector = networkMgmt.getEffector();
-
-            // Connect probe and effectors with feedback loop
             feedbackLoop.setProbe(probe);
             feedbackLoop.setEffector(effector);
             feedbackLoop.setNetwork(networkMgmt);
 
-            // Start Feedback loop
-            //int effectivePower = Math.max(1, currentPowerAdd - currentPowerSub); // Calcola la potenza effettiva
             feedbackLoop.start(currentPowerAdd, currentPowerSub, currentDistribution);
 
             ArrayList<QoS> result = networkMgmt.getNetworkQoS(96);
-
             System.out.println("Run, PacketLoss, EnergyConsumption");
             result.forEach(qos -> System.out.println(qos));
 
-            // Calcola la ricompensa: vogliamo minimizzare il consumo di energia e tenere la perdita di pacchetti < 0.30
+            // Calcola la ricompensa in base alla nuova funzione
             double reward = calculateReward(result);
 
             // Determina il nuovo stato basato sui risultati della simulazione
@@ -107,29 +99,19 @@ public class RL {
 
             int newStateId = getStateFromSimulation(averageEnergy, averageLoss, powerAdd, powerSub, distributionChange, neigh);
 
-            int oldStateId = currentState;
-            moves.add(new Move(oldStateId, actionId, newStateId, reward));
-            currentState = newStateId;
+            // Aggiorna la lista di mosse e la Q-Table dell'agente
+            moves.add(new Move(currentState, actionId, newStateId, reward));
+            agent.update(currentState, actionId, newStateId, reward);
 
-            // Aggiorna i valori di potenza e distribuzione correnti
-            currentPowerAdd = Math.max(1, currentPowerAdd + powerAdd); // Usa `powerAdd`
-            currentPowerSub = Math.max(1, currentPowerSub + powerSub); // Usa `powerSub`
-            currentDistribution = Math.max(1, currentDistribution + distributionChange);
-
-            // Limita la potenza e la distribuzione ai valori massimi consentiti
-            currentPowerAdd = Math.min(currentPowerAdd, 10); // Imposta il limite massimo per la potenza aggiunta a 10
-            currentPowerSub = Math.min(currentPowerSub, 10); // Imposta il limite massimo per la potenza sottratta a 10
-            currentDistribution = Math.min(currentDistribution, 50); // Imposta il limite massimo per la distribuzione a 50
-
-            // Aggiorna la Q-Table dell'agente
-            agent.update(oldStateId, actionId, newStateId, reward);
+            currentState = newStateId;  // Aggiorna lo stato corrente
 
             System.out.println("current powerAdd = " + currentPowerAdd + ", current powerSub = " + currentPowerSub + " , current distribution = " + currentDistribution + ", reward = " + reward);
         }
 
         SaveJsonToFile saveJsonToFile = new SaveJsonToFile();
-        saveJsonToFile.save(agent.toJson(), "JsonRL/" + SimulationClientAF.Case.CASE1 + ".json"); //TODO il case va passato quando si chiama il training
+        saveJsonToFile.save(agent.toJson(), "JsonRL/" + SimulationClientAF.Case.CASE1 + ".json");
     }
+
 
 
 
@@ -150,9 +132,11 @@ public class RL {
     }
 
     private static int decodeDistributionChange(int actionId) {
-        return ((actionId / 5) % 5) + 1; // Valori da 1 a 5, garantiti positivi
+        return (((actionId / 5) % 5) + 1)*10; // Valori da 1 a 5, garantiti positivi
     }
 
+
+    /*
     private static double calculateReward(ArrayList<QoS> result) {
         double totalEnergy = 0.0;
         double totalPacketLoss = 0.0;
@@ -200,5 +184,53 @@ public class RL {
 
         return reward;
     }
+
+     */
+
+    private static double calculateReward(ArrayList<QoS> results) {
+        double totalEnergy = 0.0;
+        double totalPacketLoss = 0.0;
+        double penalty = 0.0;
+        double rewardBonus = 0.0;
+
+        int resultSize = results.size();
+
+        // Calcola la media corrente di Energy e Packet Loss
+        double currentAvgEnergy = results.stream().mapToDouble(QoS::getEnergyConsumption).average().orElse(0.0);
+        double currentAvgLoss = results.stream().mapToDouble(QoS::getPacketLoss).average().orElse(0.0);
+
+        // Premi per riduzioni rispetto alle iterazioni precedenti, con enfasi su packet loss
+        if (resultSize > 1) {
+            // Ottieni i valori dell'iterazione precedente
+            QoS prevQoS = results.get(resultSize - 2);
+            double prevEnergy = prevQoS.getEnergyConsumption();
+            double prevLoss = prevQoS.getPacketLoss();
+
+            // Riduzione di packet loss e energy favorisce la ricompensa, con peso doppio per packet loss
+            rewardBonus += 2 * (prevLoss - currentAvgLoss) + (prevEnergy - currentAvgEnergy);
+
+            // Penalità se i valori di loss o energy sono sopra la soglia desiderata
+            if (currentAvgLoss > 0.30) penalty += 1000 * (currentAvgLoss - 0.30); // Penalità più alta per packet loss
+            if (currentAvgEnergy > prevEnergy) penalty += 500 * (currentAvgEnergy - prevEnergy); // Penalità per aumento di energy
+
+            // Penalità per fluttuazioni (spikes) analizzando tutta la cronologia
+            for (int i = 1; i < resultSize; i++) {
+                double prevLossSpike = results.get(i - 1).getPacketLoss();
+                double currentLossSpike = results.get(i).getPacketLoss();
+                double prevEnergySpike = results.get(i - 1).getEnergyConsumption();
+                double currentEnergySpike = results.get(i).getEnergyConsumption();
+
+                // Penalità per variazioni elevate tra un timestamp e l'altro
+                if (Math.abs(currentLossSpike - prevLossSpike) > 0.05) penalty += 100; // Penalità per fluttuazione in loss
+                if (Math.abs(currentEnergySpike - prevEnergySpike) > 5) penalty += 50; // Penalità per fluttuazione in energy
+            }
+        }
+
+        // Ricompensa finale calcolata come differenza tra premio per miglioramenti e penalità per peggioramenti
+        double reward = rewardBonus - penalty;
+        return reward;
+    }
+
+
 
 }

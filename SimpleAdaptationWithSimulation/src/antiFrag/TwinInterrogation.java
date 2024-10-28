@@ -88,7 +88,7 @@ public class TwinInterrogation {
         Simulator copy = buildCloneNetwork(actualNetwork);
         LoadTrainedAgent rl = new LoadTrainedAgent();
         String path = "JsonRL/CASE1.json";
-        List<Link> links = copy.getMoteWithId(16).getLinks();
+        List<Link> links = copy.getMoteWithId(16).getLinks();//TODO non possiamo assumere che sia anomalia 1 e che il nodo abbia 16 come id
         int neigh = 0;
         for (Link link : links) {
             neigh = link.getTo().getId(); // get neigh

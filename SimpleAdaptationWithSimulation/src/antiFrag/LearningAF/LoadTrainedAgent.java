@@ -58,9 +58,9 @@ public class LoadTrainedAgent {
             int distributionChange = decodeDistributionChange(actionId);
 
             // Aggiorna i valori di potenza e distribuzione correnti
-            currentPowerAdd = Math.max(1, currentPowerAdd + powerAdd);
-            currentPowerSub = Math.max(1, currentPowerSub + powerSub);
-            currentDistribution = Math.max(1, currentDistribution + distributionChange);
+            currentPowerAdd = Math.max(1, powerAdd);
+            currentPowerSub = Math.max(1, powerSub);
+            currentDistribution = Math.max(1, distributionChange);
 
             // Limita la potenza e la distribuzione ai valori massimi consentiti
             currentPowerAdd = Math.min(currentPowerAdd, 10);
@@ -106,7 +106,7 @@ public class LoadTrainedAgent {
     }
 
     private static int decodeDistributionChange(int actionId) {
-        return ((actionId / 25) % 5) + 1; // Valori da 1 a 5, garantiti positivi per cambiare distribuzione
+        return (((actionId / 5) % 5) + 1)*10; // Valori da 1 a 5, garantiti positivi per cambiare distribuzione
     }
 
     private static void applyConfiguration(int effectivePower, int distribution) {

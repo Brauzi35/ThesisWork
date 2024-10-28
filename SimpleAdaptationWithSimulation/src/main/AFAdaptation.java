@@ -51,8 +51,10 @@ public class AFAdaptation {
     }
 
     public static void main(String[] args) {
-        AFAdaptation client = new AFAdaptation();
-        client.start();
+        for(int i = 0; i<10; i++) {
+            AFAdaptation client = new AFAdaptation();
+            client.start();
+        }
     }
 
     public Simulator getSimulator() {
