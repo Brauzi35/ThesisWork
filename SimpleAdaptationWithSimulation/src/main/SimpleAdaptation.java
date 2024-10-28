@@ -1,25 +1,17 @@
 package main;
 
-import java.awt.geom.Point2D;
 import java.util.ArrayList;
-import java.util.List;
 
 import antiFrag.BetterFeedbackAF;
-import antiFrag.SimulationClientAF;
 import deltaiot.client.Effector;
 import deltaiot.client.Probe;
 import deltaiot.client.SimulationClient;
-import domain.Link;
-import domain.Mote;
 import mapek.FeedbackLoop;
-import mapek.FeedbackLoopAFReacrive;
 import simulator.QoS;
 import simulator.Simulator;
 
 import static antiFrag.BetterFeedbackAF.writeMotesToCsv;
 import static antiFrag.BetterFeedbackAF.writeQoSToCSV;
-import static antiFrag.Position.FindPositionAndNeighbour.findClosestNode;
-import static antiFrag.Position.FindPositionAndNeighbour.getPosition;
 
 public class SimpleAdaptation {
 

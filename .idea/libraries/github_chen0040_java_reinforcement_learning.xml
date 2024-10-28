@@ -1,0 +1,14 @@
+<component name="libraryTable">
+  <library name="github.chen0040.java.reinforcement.learning" type="repository">
+    <properties maven-id="com.github.chen0040:java-reinforcement-learning:1.0.5" />
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/lib/java-reinforcement-learning-1.0.5.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/slf4j-api-1.7.20.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/slf4j-log4j12-1.7.20.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/log4j-1.2.17.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/fastjson-1.2.41.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

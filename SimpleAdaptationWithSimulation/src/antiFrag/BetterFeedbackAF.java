@@ -123,7 +123,7 @@ public class BetterFeedbackAF {
 
     public ArrayList<QoS> start(SimulationClientAF.Case c, int j, int d, boolean firstTime, ArrayList<QoS> bestResult){
 
-        System.out.println("start!"+d+j);
+        //System.out.println("start!"+d+j);
         int[] pwrs = {1, 2, 3, 4, 5};
         int[] dists = {10, 20, 30, 40, 50};
 
@@ -151,8 +151,8 @@ public class BetterFeedbackAF {
                 bestj = 0;
                 bestd = 0;
                 if(d==0 && j==0) {
-                    System.out.println("primo risultato è quello con indice j,d: "+j+","+d );
-                    bestResult2.forEach(qos -> System.out.println(qos));
+                    //System.out.println("primo risultato è quello con indice j,d: "+j+","+d );
+                    //bestResult2.forEach(qos -> System.out.println(qos));
                 }
                 //return bestResult;
                 return bestResult2;
@@ -164,8 +164,10 @@ public class BetterFeedbackAF {
                 if (isBetterResult(newResult, bestResult)) {
                     this.bestd = d;
                     this.bestj = j;
+                    /*
                     System.out.println("Miglior risultato è quello con indice j,d: "+j+","+d );
                     newResult.forEach(qos -> System.out.println(qos));
+                    */
 
                     return newResult;  // Aggiorna bestResult se newResult è migliore
 

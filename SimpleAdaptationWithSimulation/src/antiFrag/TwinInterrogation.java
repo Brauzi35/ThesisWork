@@ -1,8 +1,10 @@
 package antiFrag;
 
+import antiFrag.LearningAF.LoadTrainedAgent;
 import deltaiot.client.SimulationClient;
 import domain.DoubleRange;
 import domain.Gateway;
+import domain.Link;
 import domain.Mote;
 import mapek.FeedbackLoop;
 import simulator.QoS;
@@ -59,12 +61,12 @@ public class TwinInterrogation {
 
         for(int i = 0; i<5;i++){
             for(int j = 0; j<5; j++) {
-                System.out.println("twinInterrogation!"+i+j);
+                //System.out.println("twinInterrogation!"+i+j);
                 //Simulator copy = new Simulator();
                 Simulator copy = buildCloneNetwork(actualNetwork);
 
 
-                System.out.println("run number twin:"+copy.getRunInfo().getRunNumber());
+                //System.out.println("run number twin:"+copy.getRunInfo().getRunNumber());
                 BetterFeedbackAF betterFeedbackAF = new BetterFeedbackAF(new SimulationClientAF(copy));
 
                 ArrayList<QoS> temp = betterFeedbackAF.start(SimulationClientAF.Case.CASE1, j,i,firstTime, bestResult);
@@ -80,5 +82,17 @@ public class TwinInterrogation {
         }
         int[] ret = {bestd, bestj};
         return ret;
+    }
+
+    public int[] startRL(){ //TODO passare il caso individuato dall'anomaly detection, andrebbe messo nello stato del RL
+        Simulator copy = buildCloneNetwork(actualNetwork);
+        LoadTrainedAgent rl = new LoadTrainedAgent();
+        String path = "JsonRL/CASE1.json";
+        List<Link> links = copy.getMoteWithId(16).getLinks();
+        int neigh = 0;
+        for (Link link : links) {
+            neigh = link.getTo().getId(); // get neigh
+        }
+        return rl.interrogation(path, neigh, copy);
     }
 }

@@ -4,7 +4,7 @@ import antiFrag.SimulationClientAF;
 import deltaiot.client.Effector;
 import deltaiot.client.Probe;
 import deltaiot.client.SimulationClient;
-import mapek.FeedbackLoopAFReacrive;
+import mapek.FeedbackLoopAFReactive;
 import simulator.QoS;
 import simulator.Simulator;
 
@@ -20,6 +20,7 @@ public class AFAdaptation {
 
         Point2D point2D = getPosition();
         int neigh = findClosestNode(point2D);
+        System.out.println("il vicino è: " + neigh);
         SimulationClientAF sc = new SimulationClientAF(SimulationClientAF.Case.CASE1, (int)point2D.getX(), (int)point2D.getY(), 118800.0, 200, neigh);
         // Create a simulation client object
         networkMgmt = new SimulationClient(sc.getSimulator());
@@ -28,7 +29,7 @@ public class AFAdaptation {
 
         // Create Feedback loop
         //FeedbackLoop feedbackLoop = new FeedbackLoop();
-        FeedbackLoopAFReacrive feedbackLoop = new FeedbackLoopAFReacrive();
+        FeedbackLoopAFReactive feedbackLoop = new FeedbackLoopAFReactive();
 
         // get probe and effectors
         Probe probe = networkMgmt.getProbe();

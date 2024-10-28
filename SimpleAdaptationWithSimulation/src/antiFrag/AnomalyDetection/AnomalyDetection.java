@@ -30,7 +30,7 @@ public class AnomalyDetection {
         }
     }
 
-    // Mappa che contiene le informazioni "normali" (modello) indicizzate per Run ID
+    // Mappa che contiene le informazioni "normali" (modello) indicizzate per run
     private static Map<Integer, DataPoint> normalModel = new HashMap<>();
     private static int commonDimension = 5; // Dimensione fissa per ogni punto dati
 
@@ -86,35 +86,33 @@ public class AnomalyDetection {
     }
 
     // Metodo per costruire il modello normale dai file iniziali
-    public static void buildNormalModel(List<File> qosFiles, List<File> stateFiles) throws IOException{
+    public static void buildNormalModel(List<File> qosFiles, List<File> stateFiles) throws IOException {
         // Processa i file qos_X.csv
         for (File file : qosFiles) {
-            CSVReader reader = new CSVReader(new FileReader(file));
-            String[] line;
-            while ((line = reader.readNext()) != null) {
-                if (line[0].equals("Run")) continue; // skip header
+            try (CSVReader reader = new CSVReader(new FileReader(file))) {
+                String[] line;
+                while ((line = reader.readNext()) != null) {
+                    if (line[0].equals("Run")) continue; // skip header
 
-                // dati per qos_x.csv
-                int runId = Integer.parseInt(line[0]);
-                double packetLoss = Double.parseDouble(line[1]);
-                double energyConsumption = Double.parseDouble(line[2]);
+                    // dati per qos_x.csv
+                    int runId = Integer.parseInt(line[0]);
+                    double packetLoss = Double.parseDouble(line[1]);
+                    double energyConsumption = Double.parseDouble(line[2]);
 
-                // init point
-                double[] point = new double[commonDimension];
-                point[0] = packetLoss;
-                point[1] = energyConsumption;
+                    // init point
+                    double[] point = new double[commonDimension];
+                    point[0] = packetLoss;
+                    point[1] = energyConsumption;
 
-                // Aggiungi il punto al modello normale (provvisoriamente, verrà aggiornato con i dati stateY.txt)
-                normalModel.put(runId, new DataPoint(runId, point));
+                    // Aggiungi il punto al modello normale (provvisoriamente, verrà aggiornato con i dati stateY.txt)
+                    normalModel.put(runId, new DataPoint(runId, point));
+                }
             }
-            reader.close();
         }
 
         // Processa i file stateY.txt
         for (File file : stateFiles) {
-            List<String> lines = Files.readAllLines(file.toPath());
             int runId = -1;
-
             double totalBattery = 0;
             double averagePower = 0;
             double totalDistribution = 0;
@@ -125,28 +123,32 @@ public class AnomalyDetection {
             Pattern batteryPattern = Pattern.compile("battery=([\\d.,]+)/");
             Pattern linkPattern = Pattern.compile("Link \\[.*power=(\\d+), distribution=(\\d+)\\]");
 
-            for (String line : lines) {
-                if (line.startsWith("timestamp:")) {
-                    // timestamp (=id run)
-                    runId = Integer.parseInt(line.replace("timestamp:", "").trim());
-                }
+            // Usa BufferedReader per leggere il file riga per riga
+            try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    if (line.startsWith("timestamp:")) {
+                        // timestamp (=id run)
+                        runId = Integer.parseInt(line.replace("timestamp:", "").trim());
+                    }
 
-                Matcher batteryMatcher = batteryPattern.matcher(line);
-                if (batteryMatcher.find()) {
-                    // sommare batterie dei Mote
-                    double battery = Double.parseDouble(batteryMatcher.group(1).replace(',', '.'));
-                    totalBattery += battery; //TODO forse sommarle non è una buona idea, perchè non capisco se c'è un mote completamente scarico e tutti gli altri sono carichi
-                    moteCount++;
-                }
+                    Matcher batteryMatcher = batteryPattern.matcher(line);
+                    if (batteryMatcher.find()) {
+                        // sommare batterie dei Mote
+                        double battery = Double.parseDouble(batteryMatcher.group(1).replace(',', '.'));
+                        totalBattery += battery;
+                        moteCount++;
+                    }
 
-                Matcher linkMatcher = linkPattern.matcher(line);
-                if (linkMatcher.find()) {
-                    // uguale ma per potenza e distribuzione TODO vedi sopra
-                    double power = Double.parseDouble(linkMatcher.group(1));
-                    double distribution = Double.parseDouble(linkMatcher.group(2));
-                    averagePower += power;
-                    totalDistribution += distribution;
-                    linkCount++;
+                    Matcher linkMatcher = linkPattern.matcher(line);
+                    if (linkMatcher.find()) {
+                        // uguale ma per potenza e distribuzione
+                        double power = Double.parseDouble(linkMatcher.group(1));
+                        double distribution = Double.parseDouble(linkMatcher.group(2));
+                        averagePower += power;
+                        totalDistribution += distribution;
+                        linkCount++;
+                    }
                 }
             }
 
@@ -159,6 +161,7 @@ public class AnomalyDetection {
             }
         }
     }
+
 
     /**
      *
@@ -186,7 +189,7 @@ public class AnomalyDetection {
         System.out.println("Distanza dai dati normali: " + distance);
 
 
-        double anomalyThreshold = 1000.0;  // TODO capire se la soglia è ok
+        double anomalyThreshold = 300.0;  // TODO capire se la soglia è ok
         if (distance > anomalyThreshold) {
             System.out.println("Anomalia rilevata nella Run ID " + runId);
             return true;

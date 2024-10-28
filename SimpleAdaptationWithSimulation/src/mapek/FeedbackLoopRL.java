@@ -15,7 +15,7 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
-public class FeedbackLoopAFReacrive {
+public class FeedbackLoopRL {
 
     Probe probe;
     Effector effector;
@@ -27,6 +27,8 @@ public class FeedbackLoopAFReacrive {
     boolean firstTime = true;
     ArrayList<Mote> motes;
     List<PlanningStep> steps = new LinkedList<>();
+
+    int round = 0;
 
     public void setProbe(Probe probe) {
         this.probe = probe;
@@ -40,27 +42,28 @@ public class FeedbackLoopAFReacrive {
         this.clientAF = networkAF;
     }
 
-    public void start() {
+    public void start(int pwrsAdd, int pwrsSub, int dists) {
         for (int i = 0; i < 95; i++) {
-            monitor();
+            monitor(pwrsAdd, pwrsSub,dists);
         }
     }
 
-    void monitor() {
+    void monitor(int pwrsAdd, int pwrsSub, int dists) {
         motes = probe.getAllMotes();
 
         // perform analysis
-        analysis();
+        analysis(pwrsAdd, pwrsSub,dists);
     }
 
-    void analysis() {
-
+    void analysis(int pwrsAdd, int pwrsSub, int dists) {
+        int[] bestConf = {0,0};
         if(firstTime){
             originalMotes = motes; //TODO what if the network starts in an unfamiliar setup?
             firstTime = false;
         } else{
             //if it's not the first analysis iteration
             //we should check if the network has changed its topology (and more)
+            /*
             AnomalyDetection anomalyDetection = new AnomalyDetection();
             anomalyDetection.init();
             int timestamp = networkMgmt.getSimulator().getRunInfo().getRunNumber();
@@ -73,6 +76,7 @@ public class FeedbackLoopAFReacrive {
             double averagePower = 0.0;
             double totalDistribution = 0.0;
             int linkCount = 0;
+
             List<domain.Mote> motes = networkMgmt.getSimulator().getMotes();
             for(domain.Mote m : motes){
                 tot_battery += m.getBatteryRemaining();
@@ -87,22 +91,28 @@ public class FeedbackLoopAFReacrive {
             point[3] = averagePower / linkCount;
             point[4] = totalDistribution / linkCount;
 
-            if(anomalyDetection.checkForAnomaly(timestamp, point)){//!(originalMotes.size()==motes.size())){ //TODO implementare un modo vero per accorgermi di un problema
+             */
+            //if(anomalyDetection.checkForAnomaly(timestamp, point)){//!(originalMotes.size()==motes.size())){
                 //simulate possible scenarios and take the correct choice
                 //Simulator sim = networkMgmt.getSimulator();
-                SimulationClient clientCopy = networkMgmt; //TODO probabilmente inutile in quanto shallow copy
-                TwinInterrogation twin = new TwinInterrogation(clientCopy);
+                //SimulationClient clientCopy = networkMgmt;
+                //TwinInterrogation twin = new TwinInterrogation(clientCopy);
 
-                int[] bestConf = twin.start();
-                System.out.println("sarebbe meglio usare questa conf" + bestConf[0] + bestConf[1]); //TODO ok riesco ad ottenerle: ogni quanto le voglio? che ci faccio?
-            }
+                //bestConf = twin.start();
+                //System.out.println("sarebbe meglio usare questa conf" + bestConf[0] + bestConf[1]); //TODO ok riesco ad ottenerle: ogni quanto le voglio? che ci faccio?
+            //}
         }
         // analyze all link settings
         boolean adaptationRequired = analyzeLinkSettings();
-
+        round++;
         // if adaptation required invoke the planner
         if (adaptationRequired) {
-            planning();
+            //if(round%5==0) {
+               // System.out.println("better planning");
+                planning(pwrsAdd, pwrsSub,dists);
+           // }else {
+               // planning(0,0);
+            //}
         }
     }
 
@@ -122,7 +132,7 @@ public class FeedbackLoopAFReacrive {
         return false;
     }
 
-    void planning() {
+    void planning(int pwrsAdd, int pwrsSub, int dists) {
 
         // Go through all links
         boolean powerChanging = false;
@@ -131,10 +141,10 @@ public class FeedbackLoopAFReacrive {
             for (Link link : mote.getLinks()) {
                 powerChanging = false;
                 if (link.getSNR() > 0 && link.getPower() > 0) {
-                    steps.add(new PlanningStep(Step.CHANGE_POWER, link, link.getPower() - 1));
+                    steps.add(new PlanningStep(Step.CHANGE_POWER, link, link.getPower() - pwrsSub));
                     powerChanging = true;
                 } else if (link.getSNR() < 0 && link.getPower() < 15) {
-                    steps.add(new PlanningStep(Step.CHANGE_POWER, link, link.getPower() + 1));
+                    steps.add(new PlanningStep(Step.CHANGE_POWER, link, link.getPower() + pwrsAdd));
                     powerChanging = true;
                 }
             }
@@ -149,11 +159,11 @@ public class FeedbackLoopAFReacrive {
                         right.setDistribution(50);
                     }
                     if (left.getPower() > right.getPower() && left.getDistribution() < 100) {
-                        steps.add(new PlanningStep(Step.CHANGE_DIST, left, left.getDistribution() + 10));
-                        steps.add(new PlanningStep(Step.CHANGE_DIST, right, right.getDistribution() - 10));
+                        steps.add(new PlanningStep(Step.CHANGE_DIST, left, left.getDistribution() + dists));
+                        steps.add(new PlanningStep(Step.CHANGE_DIST, right, right.getDistribution() - dists));
                     } else if (right.getDistribution() < 100) {
-                        steps.add(new PlanningStep(Step.CHANGE_DIST, right, right.getDistribution() + 10));
-                        steps.add(new PlanningStep(Step.CHANGE_DIST, left, left.getDistribution() - 10));
+                        steps.add(new PlanningStep(Step.CHANGE_DIST, right, right.getDistribution() + dists));
+                        steps.add(new PlanningStep(Step.CHANGE_DIST, left, left.getDistribution() - dists));
                     }
                 }
             }
