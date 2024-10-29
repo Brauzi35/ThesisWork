@@ -23,9 +23,7 @@ import static antiFrag.Position.FindPositionAndNeighbour.getPosition;
 public class LoadTrainedAgent {
     static Random random = new Random();
 
-    public static void main(String[] args) {
-        //interrogation("JsonRL/CASE1.json");
-    }
+
 
     public int[] interrogation(String pathJson, int neigh, Simulator actualNetwork){ //TODO passare anche il tipo di anomalia
         // Carica l'agente dal file JSON salvato durante il training
@@ -58,9 +56,9 @@ public class LoadTrainedAgent {
             int distributionChange = decodeDistributionChange(actionId);
 
             // Aggiorna i valori di potenza e distribuzione correnti
-            currentPowerAdd = Math.max(1, powerAdd);
-            currentPowerSub = Math.max(1, powerSub);
-            currentDistribution = Math.max(1, distributionChange);
+            currentPowerAdd = Math.max(0, powerAdd);
+            currentPowerSub = Math.max(0, powerSub);
+            currentDistribution = Math.max(0, distributionChange);
 
             // Limita la potenza e la distribuzione ai valori massimi consentiti
             currentPowerAdd = Math.min(currentPowerAdd, 10);
@@ -98,16 +96,17 @@ public class LoadTrainedAgent {
     }
 
     private static int decodePowerAdd(int actionId) {
-        return (actionId % 5) + 1; // Valori da 1 a 5, garantiti positivi per aggiungere potenza
+        return Math.abs(actionId % 6); // Valori da 0 a 5
     }
 
     private static int decodePowerSub(int actionId) {
-        return ((actionId / 5) % 5) + 1; // Valori da 1 a 5, garantiti positivi per sottrarre potenza
+        return Math.abs((actionId / 6) % 6); // Valori da 0 a 5
     }
 
     private static int decodeDistributionChange(int actionId) {
-        return (((actionId / 5) % 5) + 1)*10; // Valori da 1 a 5, garantiti positivi per cambiare distribuzione
+        return Math.abs(((actionId / 36) % 6) * 10); // Valori da 0 a 50 in step di 10
     }
+
 
     private static void applyConfiguration(int effectivePower, int distribution) {
         // Implementa qui il metodo per applicare la configurazione della rete usando effectivePower e distribution

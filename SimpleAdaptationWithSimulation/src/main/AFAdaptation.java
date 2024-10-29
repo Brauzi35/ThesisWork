@@ -1,6 +1,8 @@
 package main;
 
+import antiFrag.AnomalyDetection.AnomalyDetection;
 import antiFrag.SimulationClientAF;
+import antiFrag.Utils.CsvWriter;
 import deltaiot.client.Effector;
 import deltaiot.client.Probe;
 import deltaiot.client.SimulationClient;
@@ -16,7 +18,9 @@ import static antiFrag.Position.FindPositionAndNeighbour.getPosition;
 
 public class AFAdaptation {
     SimulationClient networkMgmt;
-    public void start(){
+    CsvWriter csvWriter = new CsvWriter();
+    static AnomalyDetection anomalyDetection;
+    public void start(int i){
 
         Point2D point2D = getPosition();
         int neigh = findClosestNode(point2D);
@@ -29,7 +33,7 @@ public class AFAdaptation {
 
         // Create Feedback loop
         //FeedbackLoop feedbackLoop = new FeedbackLoop();
-        FeedbackLoopAFReactive feedbackLoop = new FeedbackLoopAFReactive();
+        FeedbackLoopAFReactive feedbackLoop = new FeedbackLoopAFReactive(anomalyDetection);
 
         // get probe and effectors
         Probe probe = networkMgmt.getProbe();
@@ -48,16 +52,26 @@ public class AFAdaptation {
         System.out.println("Run, PacketLoss, EnergyConsumption");
         result.forEach(qos -> System.out.println(qos));
 
+
+
+        csvWriter.writeQoSToCSV(result, "BetterPolicy/simulation"+i+"_neigh" +neigh+".csv");
     }
 
     public static void main(String[] args) {
-        for(int i = 0; i<10; i++) {
+        initAD();
+        for(int i = 0; i<100; i++) {
             AFAdaptation client = new AFAdaptation();
-            client.start();
+            client.start(i);
+
         }
     }
 
     public Simulator getSimulator() {
         return networkMgmt.getSimulator();
+    }
+
+    public static void initAD(){
+        anomalyDetection = new AnomalyDetection();
+        anomalyDetection.init();
     }
 }

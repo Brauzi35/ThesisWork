@@ -27,12 +27,17 @@ public class FeedbackLoopAFReactive {
     boolean firstTime = true;
     ArrayList<Mote> motes;
     List<PlanningStep> steps = new LinkedList<>();
+    int[] prevConf = {1,1,10};
 
     AnomalyDetection anomalyDetection;
 
     public FeedbackLoopAFReactive() {
         anomalyDetection = new AnomalyDetection();
         anomalyDetection.init();
+    }
+
+    public FeedbackLoopAFReactive(AnomalyDetection anomalyDetection){
+        this.anomalyDetection=anomalyDetection;
     }
 
     int round = 0;
@@ -64,6 +69,7 @@ public class FeedbackLoopAFReactive {
 
     void analysis() {
         int[] bestConf = {0,0,0}; //prima era lungo 2, da quando ho messo rl ho introdotto 3 gradi di libertà
+
         if(firstTime){
             originalMotes = motes; //TODO what if the network starts in an unfamiliar setup?
             firstTime = false;
@@ -118,8 +124,9 @@ public class FeedbackLoopAFReactive {
             if(round%5==0) {
                 System.out.println("better planning");
                 planning(bestConf[0], bestConf[1], bestConf[2]);
+                prevConf = bestConf;
             }else {
-                planning(1,1, 10); //default settings
+                planning(prevConf[0], prevConf[1], prevConf[2]); //default settings
             }
         }
     }

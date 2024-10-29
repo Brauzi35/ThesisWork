@@ -136,7 +136,7 @@ public class SimulationAF {
         feedbackLoop.start(); //Start fa partire il loop
 
         ArrayList<QoS> result = networkMgmt.getNetworkQoS(96);
-        writeQoSToCSV(result, "SimulationAFDataC1/run"+i+"_neighbour"+neigh+".csv");
+        writeQoSToCSV(result, "StandardPolicy/sumulation"+i+"_neigh"+neigh+".csv");
         System.out.println("Run, PacketLoss, EnergyConsumption");
         result.forEach(qos -> System.out.println(qos));
 

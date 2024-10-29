@@ -47,7 +47,7 @@ public class RL {
         int currentState = random.nextInt(stateCount);
         List<Move> moves = new ArrayList<>();
 
-        for (int time = 0; time < 5000; ++time) {
+        for (int time = 0; time < 1000; ++time) {
             Point2D point2D = getPosition();
             int neigh = findClosestNode(point2D);
             System.out.println("neighbour is: " + neigh);
@@ -124,16 +124,17 @@ public class RL {
     }
 
     private static int decodePowerAdd(int actionId) {
-        return (actionId % 5) + 1; // Valori da 1 a 5, garantiti positivi per aggiungere potenza
+        return Math.abs(actionId % 6); // Valori da 0 a 5
     }
 
     private static int decodePowerSub(int actionId) {
-        return ((actionId / 5) % 5) + 1; // Valori da 1 a 5, garantiti positivi per sottrarre potenza
+        return Math.abs((actionId / 6) % 6); // Valori da 0 a 5
     }
 
     private static int decodeDistributionChange(int actionId) {
-        return (((actionId / 5) % 5) + 1)*10; // Valori da 1 a 5, garantiti positivi
+        return Math.abs(((actionId / 36) % 6) * 10); // Valori da 0 a 50 in step di 10
     }
+
 
 
     /*
@@ -188,48 +189,56 @@ public class RL {
      */
 
     private static double calculateReward(ArrayList<QoS> results) {
-        double totalEnergy = 0.0;
-        double totalPacketLoss = 0.0;
         double penalty = 0.0;
         double rewardBonus = 0.0;
+        double maxPacketLossThreshold = 0.30; // Soglia critica per packet loss
 
         int resultSize = results.size();
+        if (resultSize == 0) return 0.0; // Caso in cui non ci sono dati
 
-        // Calcola la media corrente di Energy e Packet Loss
+        // Calcolo la media corrente del consumo di energia e packet loss
         double currentAvgEnergy = results.stream().mapToDouble(QoS::getEnergyConsumption).average().orElse(0.0);
         double currentAvgLoss = results.stream().mapToDouble(QoS::getPacketLoss).average().orElse(0.0);
 
-        // Premi per riduzioni rispetto alle iterazioni precedenti, con enfasi su packet loss
-        if (resultSize > 1) {
-            // Ottieni i valori dell'iterazione precedente
-            QoS prevQoS = results.get(resultSize - 2);
-            double prevEnergy = prevQoS.getEnergyConsumption();
-            double prevLoss = prevQoS.getPacketLoss();
+        // Valutazione delle prime 10 iterazioni per la diminuzione di packet loss e consumo di energia
+        double initialLoss = results.get(0).getPacketLoss();
+        double initialEnergy = results.get(0).getEnergyConsumption();
 
-            // Riduzione di packet loss e energy favorisce la ricompensa, con peso doppio per packet loss
-            rewardBonus += 2 * (prevLoss - currentAvgLoss) + (prevEnergy - currentAvgEnergy);
+        // Se ci sono meno di 10 iterazioni, considera tutte le iterazioni disponibili
+        int maxIterations = Math.min(10, resultSize);
 
-            // Penalità se i valori di loss o energy sono sopra la soglia desiderata
-            if (currentAvgLoss > 0.30) penalty += 1000 * (currentAvgLoss - 0.30); // Penalità più alta per packet loss
-            if (currentAvgEnergy > prevEnergy) penalty += 500 * (currentAvgEnergy - prevEnergy); // Penalità per aumento di energy
+        for (int i = 1; i < maxIterations; i++) {
+            double currentLoss = results.get(i).getPacketLoss();
+            double currentEnergy = results.get(i).getEnergyConsumption();
 
-            // Penalità per fluttuazioni (spikes) analizzando tutta la cronologia
-            for (int i = 1; i < resultSize; i++) {
-                double prevLossSpike = results.get(i - 1).getPacketLoss();
-                double currentLossSpike = results.get(i).getPacketLoss();
-                double prevEnergySpike = results.get(i - 1).getEnergyConsumption();
-                double currentEnergySpike = results.get(i).getEnergyConsumption();
+            // Premi per diminuzione di packet loss e consumo di energia rispetto all'iterazione iniziale
+            rewardBonus += 3 * (initialLoss - currentLoss); // Peso maggiore per il packet loss
+            rewardBonus += (initialEnergy - currentEnergy);
 
-                // Penalità per variazioni elevate tra un timestamp e l'altro
-                if (Math.abs(currentLossSpike - prevLossSpike) > 0.05) penalty += 100; // Penalità per fluttuazione in loss
-                if (Math.abs(currentEnergySpike - prevEnergySpike) > 5) penalty += 50; // Penalità per fluttuazione in energy
+            // Penalità per picchi di packet loss superiori a 0.30
+            if (currentLoss > maxPacketLossThreshold) {
+                penalty += 2000 * (currentLoss - maxPacketLossThreshold); // Penalità elevata per superamento della soglia
             }
         }
 
-        // Ricompensa finale calcolata come differenza tra premio per miglioramenti e penalità per peggioramenti
+        // Ricompensa aggiuntiva per mantenere basso il consumo energetico medio
+        double energyThreshold = 100.0; // Soglia esempio per consumo energetico basso
+        if (currentAvgEnergy < energyThreshold) {
+            rewardBonus += 100; // Piccolo bonus per basso consumo energetico medio
+        }
+
+        // Penalità se il packet loss medio è sopra la soglia critica
+        if (currentAvgLoss > maxPacketLossThreshold) {
+            penalty += 1000 * (currentAvgLoss - maxPacketLossThreshold); // Penalità per un alto packet loss medio
+        }
+
+        // Calcola la ricompensa finale come differenza tra il bonus e la penalità
         double reward = rewardBonus - penalty;
+
         return reward;
     }
+
+
 
 
 
