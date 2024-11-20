@@ -19,15 +19,17 @@ public class CsvWriter {
 
         try (PrintWriter csvWriter = new PrintWriter(new FileWriter(fileName))) {
             // Scrivi l'header
-            csvWriter.println("Run,PacketLoss,EnergyConsumption");
+            csvWriter.println("Run,PacketLoss,EnergyConsumption,NumNodesEnergy,FairnessIndex");
 
             // Scrivi i dati, stampa anche su schermo
             for (int i = 0; i < result.size(); i++) {
                 QoS qos = result.get(i);
-                String formattedQoS = String.format("%d,%s,%s",
+                String formattedQoS = String.format("%d,%s,%s,%s,%s",
                         i,  // Usa l'indice come "Run"
                         decimalFormat.format(qos.getPacketLoss()),
-                        decimalFormat.format(qos.getEnergyConsumption())
+                        decimalFormat.format(qos.getEnergyConsumption()),
+                        decimalFormat.format(qos.getNumNodesEnergy()),
+                        decimalFormat.format(qos.getFairnessIndex())
                 );
 
                 // Stampa a schermo

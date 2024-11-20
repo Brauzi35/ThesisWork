@@ -2,10 +2,7 @@ package antiFrag;
 
 import antiFrag.LearningAF.LoadTrainedAgent;
 import deltaiot.client.SimulationClient;
-import domain.DoubleRange;
-import domain.Gateway;
-import domain.Link;
-import domain.Mote;
+import domain.*;
 import mapek.FeedbackLoop;
 import simulator.QoS;
 import simulator.Simulator;
@@ -25,9 +22,8 @@ public class TwinInterrogation {
         this.actualNetwork = actualNetwork;
     }
 
-    private static Simulator buildCloneNetwork(SimulationClient ntwrk){
+    public static Simulator buildCloneNetwork(SimulationClient ntwrk){
         Simulator simul = new Simulator();
-        //ArrayList<Mote> motes = ntwrk.getAllMotes();
         List<Mote> motes = ntwrk.getSimulator().getMotes();
 
         Mote[] allMotes = motes.toArray(new Mote[0]);
@@ -39,14 +35,15 @@ public class TwinInterrogation {
         gateway.setView(allMotes);
         simul.addGateways(gateway);
 
-        //i link dovrebbero essere ok
+        // links
         List<Integer> order = ntwrk.getSimulator().getTurnOrder();
-
+        // turns
         Integer[] turnOrderArray = order.toArray(new Integer[0]);
         simul.setTurnOrder(turnOrderArray);
         // Global random interference (mimicking Usman's random interference) simul.getRunInfo().setGlobalInterference(new DoubleRange(-5.0, 5.0));
-        simul.getRunInfo().setGlobalInterference(new DoubleRange(-5.0, 5.0));
-
+        //simul.getRunInfo().setGlobalInterference(new DoubleRange(-5.0, 5.0));
+        Profile<Double> interference  = ntwrk.getSimulator().getRunInfo().getGlobalInterference();
+        simul.getRunInfo().setGlobalInterference(interference);
 
         return simul;
     }
@@ -84,7 +81,7 @@ public class TwinInterrogation {
         return ret;
     }
 
-    public int[] startRL(){ //TODO passare il caso individuato dall'anomaly detection, andrebbe messo nello stato del RL
+    public int[][] startRL(int[][] prevConf){ //TODO passare il caso individuato dall'anomaly detection, andrebbe messo nello stato del RL
         Simulator copy = buildCloneNetwork(actualNetwork);
         LoadTrainedAgent rl = new LoadTrainedAgent();
         String path = "JsonRL/CASE1.json";
@@ -93,6 +90,18 @@ public class TwinInterrogation {
         for (Link link : links) {
             neigh = link.getTo().getId(); // get neigh
         }
-        return rl.interrogation(path, neigh, copy);
+        return rl.interrogation(path, neigh, copy, prevConf[0], prevConf[1],prevConf[2]);
+    }
+
+    public int[][] startRecovery(int[][] prevConf){ //TODO passare il caso individuato dall'anomaly detection
+        Simulator copy = buildCloneNetwork(actualNetwork);
+        LoadTrainedAgent rl = new LoadTrainedAgent();
+        String path = "JsonRL/recoveryFromAnomaly.json";
+
+        return rl.interrogation(path, 0, copy, prevConf[0], prevConf[1],prevConf[2]);
+    }
+
+    public void setActualNetwork(SimulationClient sc){
+        this.actualNetwork = sc;
     }
 }

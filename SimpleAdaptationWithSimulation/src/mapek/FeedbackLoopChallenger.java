@@ -1,8 +1,6 @@
 package mapek;
 
-import antiFrag.AnomalyDetection.AnomalyDetection;
 import antiFrag.SimulationClientAF;
-import antiFrag.TwinInterrogation;
 import deltaiot.client.Effector;
 import deltaiot.client.Probe;
 import deltaiot.client.SimulationClient;
@@ -11,17 +9,21 @@ import deltaiot.services.LinkSettings;
 import deltaiot.services.Mote;
 import domain.Gateway;
 import domain.Profile;
-import simulator.QoS;
 import simulator.Simulator;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Random;
 
-public class FeedbackLoopRL {
+public class FeedbackLoopChallenger {
 
     Probe probe;
     Effector effector;
+    boolean alreadyRemoved = false;
+
+    int[][] stdConf = {{1, 1, 1,1,1,1,1,1,1,1,1,1,1,1,1},{1, 1, 1,1,1,1,1,1,1,1,1,1,1,1,1},{10, 10, 10,10,10,10,10,10,10,10,10,10,10,10,10}}; //prima era lungo 2, da quando ho messo rl ho introdotto 3 gradi di libertà
+
 
     // Knowledge
     SimulationClient networkMgmt;
@@ -32,7 +34,7 @@ public class FeedbackLoopRL {
     List<PlanningStep> steps = new LinkedList<>();
 
     int round = 0;
-    private int recoveredTimestamp = 0;
+    private int recoveredTimestamp = -1;
 
     public int getRecoveredTimestamp() {
         return recoveredTimestamp;
@@ -114,11 +116,25 @@ public class FeedbackLoopRL {
 
     }
 
-    public void start(int[] pwrsAdd, int[] pwrsSub, int[] dists) {
-
+    public SimulationClient start(int[] pwrsAdd, int[] pwrsSub, int[] dists, int seed) {
+        Random r = new Random(seed);
         for (int i = 0; i < 95; i++) {
+            int c = r.nextInt(100);
+            int limit = 100;
+            if(i >10){
+                limit = 97;
+            }
+            if(c>limit && !alreadyRemoved){ //era 98
+                recoveredTimestamp = i;
+                System.out.println("togliamo anomalia alla run: " +i);
+                removeAnomaly();
+                alreadyRemoved = true;
+                return networkMgmt;
+
+            }
             monitor(pwrsAdd, pwrsSub,dists);
         }
+        return networkMgmt;
     }
 
     void monitor(int[] pwrsAdd, int[] pwrsSub, int[] dists) {
@@ -129,63 +145,20 @@ public class FeedbackLoopRL {
     }
 
     void analysis(int[] pwrsAdd, int[] pwrsSub, int[] dists) {
-        int[] bestConf = {0,0};
+
         if(firstTime){
-            originalMotes = motes; //TODO what if the network starts in an unfamiliar setup?
+            originalMotes = motes;
             firstTime = false;
-        } else{
-            //if it's not the first analysis iteration
-            //we should check if the network has changed its topology (and more)
-            /*
-            AnomalyDetection anomalyDetection = new AnomalyDetection();
-            anomalyDetection.init();
-            int timestamp = networkMgmt.getSimulator().getRunInfo().getRunNumber();
-            double[] point = new double[5]; //common dimension
-            ArrayList<QoS> qos = networkMgmt.getNetworkQoS(timestamp);
-            point[0] = qos.get(timestamp-1).getPacketLoss();
-            point[1] = qos.get(timestamp-1).getEnergyConsumption();
-            //total battery/mote_count
-            double tot_battery = 0.0;
-            double averagePower = 0.0;
-            double totalDistribution = 0.0;
-            int linkCount = 0;
-
-            List<domain.Mote> motes = networkMgmt.getSimulator().getMotes();
-            for(domain.Mote m : motes){
-                tot_battery += m.getBatteryRemaining();
-                List<domain.Link> links = m.getLinks();
-                for(domain.Link l : links){
-                    averagePower += l.getPowerNumber();
-                    linkCount++;
-                    totalDistribution += l.getDistribution();
-                }
-            }
-            point[2] = tot_battery/motes.size();
-            point[3] = averagePower / linkCount;
-            point[4] = totalDistribution / linkCount;
-
-             */
-            //if(anomalyDetection.checkForAnomaly(timestamp, point)){//!(originalMotes.size()==motes.size())){
-                //simulate possible scenarios and take the correct choice
-                //Simulator sim = networkMgmt.getSimulator();
-                //SimulationClient clientCopy = networkMgmt;
-                //TwinInterrogation twin = new TwinInterrogation(clientCopy);
-
-                //bestConf = twin.start();
-                //System.out.println("sarebbe meglio usare questa conf" + bestConf[0] + bestConf[1]); //TODO ok riesco ad ottenerle: ogni quanto le voglio? che ci faccio?
-            //}
         }
         // analyze all link settings
         boolean adaptationRequired = analyzeLinkSettings();
-        round++;
         // if adaptation required invoke the planner
         if (adaptationRequired) {
-            //if(round%5==0) {
-               // System.out.println("better planning");
-                planning(pwrsAdd, pwrsSub,dists);
-           // }else {
-               // planning(0,0);
-            //}
+            if(alreadyRemoved){
+                planning(stdConf[0],stdConf[1],stdConf[2]);
+            }else {
+                planning(pwrsAdd, pwrsSub, dists);
+            }
         }
     }
 
@@ -286,5 +259,6 @@ public class FeedbackLoopRL {
         }
         return null;
     }
+
 
 }

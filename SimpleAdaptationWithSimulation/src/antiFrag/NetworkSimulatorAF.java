@@ -99,7 +99,7 @@ public class NetworkSimulatorAF extends DeltaIoTSimulator {
 
     }
 
-    public static Simulator createSimulatorCase1(int x, int y, double battery16, int load16, int neighId){
+    public static Simulator createSimulatorCase1(int x, int y, double battery16, int load16, int neighId, double delta){
         /*
         case 1 = adding motes to the edge of the network with a lot of battery
          */
@@ -107,7 +107,7 @@ public class NetworkSimulatorAF extends DeltaIoTSimulator {
         //System.out.println("post simulator");
         // Motes
         int load = 10; //number of packets to send in a turn; default ws 10
-        double battery = 11880.0; //default was 11880.0
+        double battery = 11880.0-delta; //default was 11880.0
         double posScale = 2; //default was 2
         Mote mote2  = new Mote(2 , battery, load, new Position(378 * posScale, 193 * posScale));
         Mote mote3  = new Mote(3 , battery, load, new Position(365 * posScale, 343 * posScale));

@@ -1,6 +1,7 @@
 package antiFrag;
 
 import antiFrag.Position.FindPositionAndNeighbour;
+import antiFrag.Utils.CsvWriter;
 import deltaiot.client.Effector;
 import deltaiot.client.Probe;
 import deltaiot.services.Mote;
@@ -84,36 +85,7 @@ public class SimulationAF {
         return new String[]{moteId, parents, battery, load, dataProbability};
     }
 
-    public static void writeQoSToCSV(ArrayList<QoS> result, String fileName) {
-        // Impostare il formattatore decimale per usare il punto come separatore decimale
-        DecimalFormatSymbols symbols = new DecimalFormatSymbols(Locale.US);  // Usa il punto decimale
-        DecimalFormat decimalFormat = new DecimalFormat("0.######", symbols);  // Massimo 6 cifre decimali
 
-        try (PrintWriter csvWriter = new PrintWriter(new FileWriter(fileName))) {
-            // Scrivi l'header
-            csvWriter.println("Run,PacketLoss,EnergyConsumption");
-
-            // Scrivi i dati, stampa anche su schermo
-            for (int i = 0; i < result.size(); i++) {
-                QoS qos = result.get(i);
-                String formattedQoS = String.format("%d,%s,%s",
-                        i,  // Usa l'indice come "Run"
-                        decimalFormat.format(qos.getPacketLoss()),
-                        decimalFormat.format(qos.getEnergyConsumption())
-                );
-
-                // Stampa a schermo
-                //System.out.println(formattedQoS);
-
-                // Scrivi nel CSV
-                csvWriter.println(formattedQoS);
-            }
-
-            System.out.println("Dati scritti su " + fileName);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 
 
 
@@ -136,8 +108,9 @@ public class SimulationAF {
         feedbackLoop.start(); //Start fa partire il loop
 
         ArrayList<QoS> result = networkMgmt.getNetworkQoS(96);
-        writeQoSToCSV(result, "StandardPolicy/sumulation"+i+"_neigh"+neigh+".csv");
-        System.out.println("Run, PacketLoss, EnergyConsumption");
+        CsvWriter wrt = new CsvWriter();
+        wrt.writeQoSToCSV(result, "StandardPolicy/sumulation"+i+"_neigh"+neigh+".csv");
+        System.out.println("Run, PacketLoss, EnergyConsumption, #motesTooMuchEnergy, #motesTooMuchQueue, fairnessIndex");
         result.forEach(qos -> System.out.println(qos));
 
         if(c.equals(SimulationClientAF.Case.CASE1)) {
@@ -146,7 +119,7 @@ public class SimulationAF {
         }
 
         ArrayList<Mote> motes = networkMgmt.getAllMotes();
-        writeMotesToCsv(motes, "SimulationAFDataC1/motes_data"+i+"_neighbour"+neigh+".csv");
+        //writeMotesToCsv(motes, "SimulationAFDataC1/motes_data"+i+"_neighbour"+neigh+".csv");
 
 
     }

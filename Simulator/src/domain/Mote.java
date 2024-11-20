@@ -16,6 +16,8 @@ public class Mote extends Node {
 	private List<Packet> packetQueue = new ArrayList<>();
 	
 	private int lastPacketNumber = 0;
+	//messo io per queue size
+	private int queueSize = 0;
 	
 	
 	public Mote(int id, double batteryCapacity, int load, Position position) {
@@ -66,6 +68,10 @@ public class Mote extends Node {
 		return Collections.unmodifiableList(links);
 	}
 
+
+	public void setLinks(List<Link> links){
+		this.links = links;
+	}
 	/**
 	 * Handles the turn of this mote for the emulation
 	 * 
@@ -153,7 +159,7 @@ public class Mote extends Node {
 		        }
 			}
 		}
-		
+		queueSize = packetQueue.size(); //messo io
 		// Clear packet queue since they are all send now
 		packetQueue.clear();
 	}
@@ -168,6 +174,10 @@ public class Mote extends Node {
 		double batteryUsage = link.getSfTime() * (link.getPowerConsumptionRate() / DomainConstants.coulomb);
 		batteryRemaining -= batteryUsage;
 		packet.getDestination().reportPowerConsumed(batteryUsage);
+	}
+
+	public int getQueueSize(){
+		return queueSize;
 	}
 
 	@Override

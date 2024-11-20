@@ -41,13 +41,13 @@ public class SimulationClient implements Probe, Effector {
 
 	@Override
 	public ArrayList<deltaiot.services.Mote> getAllMotes() {
-		//here we start to
+		//here we start
 		simulator.doSingleRun();
 
 
 
-		String string = "AnomalyDetectionFiles/state"+this.randomNumber+".txt";
-		printToponomy(simulator, string); //added myself
+		//String string = "AnomalyDetectionFiles/state"+this.randomNumber+".txt";
+		//printToponomy(simulator, string); //added myself
 		List<Mote> motes = simulator.getMotes();
 		ArrayList<deltaiot.services.Mote> afMotes = new ArrayList<>();
 		for (Mote mote : motes) {

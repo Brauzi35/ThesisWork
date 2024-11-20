@@ -53,7 +53,8 @@ public class Gateway extends Node {
 	
 	public double calculatePacketLoss() {
 		long packetStoreSizeWithoutDuplicates = packetStore.stream().distinct().count();
-		return 1 - (double)packetStoreSizeWithoutDuplicates / (double)expectedPacketCount;
+		double temp = 1 - (double)packetStoreSizeWithoutDuplicates / (double)expectedPacketCount;
+		return Math.max(temp, 0);
 	}
 	
 	public double getPowerConsumed() {

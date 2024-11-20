@@ -4,7 +4,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import antiFrag.Utils.FairnessCalculator;
 import domain.*;
 
 public class Simulator {
@@ -127,24 +130,61 @@ public class Simulator {
 	public void doSingleRun() {
 		// Reset the gateways aggregated values, so we can start a new window to see packet loss and power consumption
 		resetGatewaysAggregatedValues();
-		
 		// Do the actual run, this will give all motes a turn
 		// Give each mote a turn, in the given order
-		for(Integer id: turnOrder) {
+		for (Integer id : turnOrder) {
 			Mote mote = getMoteWithId(id);
 			// Let mote handle its turn
 			mote.handleTurn(runInfo); //return value doesn't include packets send for other motes, only its own packets
 		}
-		
+
 		//QoS
 		QoS qos = new QoS();
 		qos.setEnergyConsumption(gateways.get(0).getPowerConsumed());
 		qos.setPacketLoss(gateways.get(0).calculatePacketLoss());
 		qos.setPeriod("" + runInfo.getRunNumber());
-		qosValues.add(qos);
+		int countMotesEngConsumption = 0;
+		int countMotesQueueTooFull = 0;
+		List<Mote> originalMotes = motes.subList(0, 13); //from 2 to 15
+		for (Mote m : originalMotes) {
+			double capacity = m.getBatteryCapacity();
+			double avg_battery_usage = capacity / (96); //capacity / 96 ci da l'usage da non eccedere per non far spegnere i motes nell'intervallo di un giorno
+			double actual_battery_usage = (capacity - m.getBatteryRemaining()) / (runInfo.getRunNumber() + 1);
+			if (actual_battery_usage > avg_battery_usage/100) {
+				countMotesEngConsumption++;
+			}
+			/*
+			String moteString = m.toString();
+			Pattern pattern = Pattern.compile("queue=(\\d+)");
+			Matcher matcher = pattern.matcher(moteString);
 
+			if (matcher.find()) { // Controlla se c'è una corrispondenza
+				int queueSize = Integer.parseInt(matcher.group(1));
+				if (m.getLoad() < queueSize) {
+					// Più elementi in coda di quanti il mote possa gestire
+					countMotesQueueTooFull++;
+				}
+			} else {
+				System.out.println("No match found for queue size in mote string: " + moteString);
+			}
+
+			 */
+			if (m.getLoad() < m.getQueueSize()) {
+				// Più elementi in coda di quanti il mote possa gestire
+				countMotesQueueTooFull++;
+			}
+
+
+
+		}
+		qos.setNumNodesEnergy(countMotesEngConsumption);
+		qos.setNumNodesLoss(countMotesQueueTooFull);
+		FairnessCalculator fairnessCalculator = new FairnessCalculator();
+		qos.setFairnessIndex(fairnessCalculator.calculateFairnessIndex(originalMotes)); //calcolo fairness sui motes originali
+		qosValues.add(qos);
 		// Increase run number
 		runInfo.incrementRunNumber();
+
 	}
 	
 	private void resetGatewaysAggregatedValues() {
@@ -207,6 +247,12 @@ public class Simulator {
 	public List<QoS> getQosValues() {
 		return qosValues;
 	}
+	public void setRunInfo( RunInfo runInfo){
+		this.runInfo = runInfo;
+	}
 
+	public void setQosValues(  List<QoS> qosValues){
+		this.qosValues = qosValues;
+	}
 
 }

@@ -16,7 +16,9 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.Objects;
 
+import static antiFrag.LearningAF.RL.*;
 import static antiFrag.Position.FindPositionAndNeighbour.findClosestNode;
 import static antiFrag.Position.FindPositionAndNeighbour.getPosition;
 
@@ -25,7 +27,7 @@ public class LoadTrainedAgent {
 
 
 
-    public int[] interrogation(String pathJson, int neigh, Simulator actualNetwork){ //TODO passare anche il tipo di anomalia
+    public int[][] interrogation(String pathJson, int neigh, Simulator actualNetwork, int[] currentPowerAdd, int[] currentPowerSub, int[] currentDistribution){ //TODO passare anche il tipo di anomalia
         // Carica l'agente dal file JSON salvato durante il training
         QLearner trainedAgent = loadAgentFromJson(pathJson);
 
@@ -35,46 +37,53 @@ public class LoadTrainedAgent {
 
 
             // Definisci la potenza e la distribuzione iniziali
-            int currentPowerAdd = 1;
-            int currentPowerSub = 1;
-            int currentDistribution = 1;
+            //int currentPowerAdd = 1;
+            //int currentPowerSub = 1;
+            //int currentDistribution = 10;
 
             List<QoS> currentSituation = actualNetwork.getQosValues();
             double avg_en = getAverageEnergy(currentSituation);
             double avg_loss = getAveragePacketLoss(currentSituation);
 
             // Ottieni lo stato corrente
-            int currentState = getStateFromSimulation(avg_en, avg_loss, currentPowerAdd, currentPowerSub, 1, neigh);
+            int currentState = getStateFromSimulation(avg_en, avg_loss, Objects.hash(currentPowerAdd), Objects.hash(currentPowerSub), Objects.hash(currentDistribution), neigh);
 
             // L'agente seleziona la migliore azione basata sullo stato attuale
             int actionId = trainedAgent.selectAction(currentState).getIndex();
             System.out.println("Agent selects action-" + actionId);
 
             // Decodifica l'azione per determinare le modifiche alla potenza e distribuzione
-            int powerAdd = decodePowerAdd(actionId);
-            int powerSub = decodePowerSub(actionId);
-            int distributionChange = decodeDistributionChange(actionId);
+            int[] powerAdd = decodePowerAdd(actionId);
+            int[] powerSub = decodePowerSub(actionId);
+            int[] distributionChange = decodeDistributionChange(actionId);
 
             // Aggiorna i valori di potenza e distribuzione correnti
+            /*
             currentPowerAdd = Math.max(0, powerAdd);
             currentPowerSub = Math.max(0, powerSub);
             currentDistribution = Math.max(0, distributionChange);
 
+             */
+
+
             // Limita la potenza e la distribuzione ai valori massimi consentiti
+            /*
             currentPowerAdd = Math.min(currentPowerAdd, 10);
             currentPowerSub = Math.min(currentPowerSub, 10);
             currentDistribution = Math.min(currentDistribution, 50);
 
-            int[] ret =  {currentPowerAdd, currentPowerSub,currentDistribution};
+             */
+
+            int[][] ret =  {powerAdd, powerSub,distributionChange};
             return ret;
         } else {
             System.out.println("Failed to load the agent.");
-            int[] ret = null;
-            return ret;
+
+            return null;
         }
     }
 
-    private static QLearner loadAgentFromJson(String jsonFilePath) {
+    public static QLearner loadAgentFromJson(String jsonFilePath) {
         QLearner agent = new QLearner();
         try {
             // Carica l'agente dal file JSON
@@ -88,31 +97,15 @@ public class LoadTrainedAgent {
     }
 
     // Metodi di supporto:
-    private static int getStateFromSimulation(double energy, double loss, int powerAdd, int powerSub, int distChange, int neigh) {
-        int energyState = (int) (energy / 10); // dividendo in intervalli di 10
-        int lossState = (int) (loss * 10); // scala la perdita tra 0-1 a intervalli di 0.1
-        int state = energyState * 100000 + lossState * 10000 + powerAdd * 1000 + powerSub * 100 + distChange * 10 + neigh; // combinazione unica di stato
-        return state;
-    }
-
-    private static int decodePowerAdd(int actionId) {
-        return Math.abs(actionId % 6); // Valori da 0 a 5
-    }
-
-    private static int decodePowerSub(int actionId) {
-        return Math.abs((actionId / 6) % 6); // Valori da 0 a 5
-    }
-
-    private static int decodeDistributionChange(int actionId) {
-        return Math.abs(((actionId / 36) % 6) * 10); // Valori da 0 a 50 in step di 10
-    }
 
 
-    private static void applyConfiguration(int effectivePower, int distribution) {
-        // Implementa qui il metodo per applicare la configurazione della rete usando effectivePower e distribution
-        System.out.println("Applying configuration: Effective Power = " + effectivePower + ", Distribution = " + distribution);
-        // Potresti voler inviare questi valori al tuo sistema di gestione della rete
-    }
+
+
+
+
+
+
+
 
     public static double getAverageEnergy(List<QoS> qosList) {
         return qosList.stream()

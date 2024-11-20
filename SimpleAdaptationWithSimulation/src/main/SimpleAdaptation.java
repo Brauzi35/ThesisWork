@@ -12,6 +12,7 @@ import simulator.Simulator;
 
 import static antiFrag.BetterFeedbackAF.writeMotesToCsv;
 import static antiFrag.BetterFeedbackAF.writeQoSToCSV;
+import static deltaiot.client.SimulationClient.printToponomy;
 
 public class SimpleAdaptation {
 
@@ -22,7 +23,7 @@ public class SimpleAdaptation {
 	SimulationClient networkMgmt;
 	static int counter;
 	public void start(){
-		BetterFeedbackAF betterFeedbackAF = new BetterFeedbackAF();
+		//BetterFeedbackAF betterFeedbackAF = new BetterFeedbackAF();
 		// Create a simulation client object
 		networkMgmt = new SimulationClient();
 		if(networkMgmt == null){
@@ -44,7 +45,7 @@ public class SimpleAdaptation {
 		feedbackLoop.start();
 
 
-		writeMotesToCsv(networkMgmt.getAllMotes(), "AnomalyDetectionFiles/motes_"+counter+".csv");
+		//writeMotesToCsv(networkMgmt.getAllMotes(), "AnomalyDetectionFiles/motes_"+counter+".csv");
 
 
 
@@ -52,7 +53,7 @@ public class SimpleAdaptation {
 
 		ArrayList<QoS> result = networkMgmt.getNetworkQoS(96);
 		writeQoSToCSV(result, "AnomalyDetectionFiles/qos_"+counter+".csv");
-		System.out.println("Run, PacketLoss, EnergyConsumption");
+		System.out.println("Run, PacketLoss, EnergyConsumption, NodesExcedingEnergyusage, NodesExcedingQueueSpace, Fairnessindex");
 		result.forEach(qos -> System.out.println(qos));
 
 	}

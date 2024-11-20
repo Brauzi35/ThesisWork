@@ -61,23 +61,27 @@ public class FindPositionAndNeighbour {
         return closestNodeId;
     }
 
-    public static Point2D getPosition(){
-        //convex hull
-        Path2D.Double polygon = new Path2D.Double();
-        polygon.moveTo(128, 344);
-        polygon.lineTo(142, 170);
-        polygon.lineTo(378, 193);
-        polygon.lineTo(628, 309);
-        polygon.lineTo(694, 356);
-        polygon.lineTo(603, 440);
-        polygon.lineTo(540, 479);
-        polygon.lineTo(392, 478);
-        polygon.closePath();
+    // Genera un punto casuale vicino ai nodi definiti
+    public static Point2D getPosition() {
+        Random rand = new Random(seed);
 
-        // Genera un punto casuale all'interno del poligono
-        Point2D randomPoint = generateRandomPointInPolygon(polygon);
-        return randomPoint;
+        // Seleziona un nodo casuale dalla lista
+        Point2D baseNode = nodes.get(rand.nextInt(nodes.size()));
+
+        // Genera un offset casuale vicino al nodo
+        double offsetX = (rand.nextDouble() - 0.5) * 100; // Range di deviazione di ±50 unità
+        double offsetY = (rand.nextDouble() - 0.5) * 100;
+
+        // Calcola la nuova posizione attorno al nodo selezionato
+        double newX = baseNode.getX() + offsetX;
+        double newY = baseNode.getY() + offsetY;
+
+        // Incrementa il seed per garantire casualità tra chiamate successive
+        seed++;
+
+        return new Point2D.Double(newX, newY);
     }
+
 
 
 

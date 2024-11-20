@@ -32,7 +32,7 @@ public class AnomalyDetection {
 
     // Mappa che contiene le informazioni "normali" (modello) indicizzate per run
     private static Map<Integer, DataPoint> normalModel = new HashMap<>();
-    private static int commonDimension = 5; // Dimensione fissa per ogni punto dati
+    private static int commonDimension = 9; // Dimensione fissa per ogni punto dati
 
     public static void main(String[] args) throws IOException{
         // Directory dei file
@@ -54,7 +54,7 @@ public class AnomalyDetection {
 
         // Supponiamo che a runtime riceviamo nuovi dati simili ai file processati
         // Eseguiamo il confronto con i dati normali
-        double[] newRuntimeData = {0.14, 24.82968, 11874.9, 15, 100}; // Dati simulati ricevuti a runtime
+        double[] newRuntimeData = {0.14, 24.82968, 11874.9, 7, 7, 0.513, 15, 100, 15}; // Dati simulati ricevuti a runtime
         int receivedRunId = 2;  // Supponiamo che abbiamo ricevuto dati per la Run 2
 
         // Eseguiamo la rilevazione di anomalie
@@ -92,17 +92,23 @@ public class AnomalyDetection {
             try (CSVReader reader = new CSVReader(new FileReader(file))) {
                 String[] line;
                 while ((line = reader.readNext()) != null) {
-                    if (line[0].equals("Run")) continue; // skip header
+                    if (line[0].equals("Run")) continue; // Salta l'intestazione
 
-                    // dati per qos_x.csv
+                    // Dati per qos_X.csv
                     int runId = Integer.parseInt(line[0]);
                     double packetLoss = Double.parseDouble(line[1]);
                     double energyConsumption = Double.parseDouble(line[2]);
+                    double nodesExceedingEnergyUsage = Double.parseDouble(line[3]);
+                    double nodesExceedingQueueSpace = Double.parseDouble(line[4]);
+                    double fairnessIndex = Double.parseDouble(line[5]);
 
-                    // init point
+                    // Inizializza il punto con i dati di qos_X.csv
                     double[] point = new double[commonDimension];
                     point[0] = packetLoss;
                     point[1] = energyConsumption;
+                    point[2] = nodesExceedingEnergyUsage;
+                    point[3] = nodesExceedingQueueSpace;
+                    point[4] = fairnessIndex;
 
                     // Aggiungi il punto al modello normale (provvisoriamente, verrà aggiornato con i dati stateY.txt)
                     normalModel.put(runId, new DataPoint(runId, point));
@@ -119,7 +125,7 @@ public class AnomalyDetection {
             int moteCount = 0;
             int linkCount = 0;
 
-            // regex estrarre i valori di battery e link
+            // Regex per estrarre i valori di battery e link
             Pattern batteryPattern = Pattern.compile("battery=([\\d.,]+)/");
             Pattern linkPattern = Pattern.compile("Link \\[.*power=(\\d+), distribution=(\\d+)\\]");
 
@@ -128,13 +134,13 @@ public class AnomalyDetection {
                 String line;
                 while ((line = br.readLine()) != null) {
                     if (line.startsWith("timestamp:")) {
-                        // timestamp (=id run)
+                        // Ottieni il timestamp (=runId)
                         runId = Integer.parseInt(line.replace("timestamp:", "").trim());
                     }
 
                     Matcher batteryMatcher = batteryPattern.matcher(line);
                     if (batteryMatcher.find()) {
-                        // sommare batterie dei Mote
+                        // Somma le batterie dei nodi
                         double battery = Double.parseDouble(batteryMatcher.group(1).replace(',', '.'));
                         totalBattery += battery;
                         moteCount++;
@@ -142,7 +148,7 @@ public class AnomalyDetection {
 
                     Matcher linkMatcher = linkPattern.matcher(line);
                     if (linkMatcher.find()) {
-                        // uguale ma per potenza e distribuzione
+                        // Somma potenza e distribuzione dei link
                         double power = Double.parseDouble(linkMatcher.group(1));
                         double distribution = Double.parseDouble(linkMatcher.group(2));
                         averagePower += power;
@@ -152,15 +158,17 @@ public class AnomalyDetection {
                 }
             }
 
-            // completare build point
+            // Completa il punto aggiungendo i dati di stateY.txt
             if (moteCount > 0 && linkCount > 0 && normalModel.containsKey(runId)) {
                 double[] point = normalModel.get(runId).getPoints();
-                point[2] = totalBattery / moteCount;      // Aggiorna battery
-                point[3] = averagePower / linkCount;      // Aggiorna power
-                point[4] = totalDistribution / linkCount; // Aggiorna distribution
+                point[5] = totalBattery / moteCount;       // Batteria media dei nodi
+                point[6] = averagePower / linkCount;      // Potenza media sui link
+                point[7] = totalDistribution / linkCount; // Distribuzione media sui link
+                point[8] = moteCount;                      // Numero di nodi (fisso)
             }
         }
     }
+
 
 
     /**
@@ -174,7 +182,7 @@ public class AnomalyDetection {
      */
 
 
-    public static boolean checkForAnomaly(int runId, double[] newRuntimeData) {
+    public static boolean checkForAnomaly(int runId, double[] newRuntimeData) { //newRuntimeData = point
         if (!normalModel.containsKey(runId)) {
             System.err.println("timestamp not found "+ runId); //TODO ora siamo in un ambiente simulato e quindi per id intendo timestamp, ma se avessi orari dovrei essere più flessibile
             return false;
@@ -197,6 +205,18 @@ public class AnomalyDetection {
             System.out.println("Situazione normale per la Run ID " + runId);
             return false;
         }
+    }
+
+    public double getDistance(int runId, double[] newRuntimeData) {
+
+
+        // normal = no anomaly
+        double[] normalData = normalModel.get(runId).getPoints();
+        EuclideanDistance distanceCalculator = new EuclideanDistance();
+
+        // Calcola la distanza tra i dati runtime e i dati normali
+        double distance = distanceCalculator.compute(newRuntimeData, normalData);
+        return distance;
     }
 
     // Metodo statico per recuperare il modello normale
