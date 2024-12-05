@@ -6,8 +6,7 @@ import java.util.List;
 import java.util.Random;
 public class FindPositionAndNeighbour {
 
-    // I nodi forniti (esclusi dal calcolo del punto casuale)
-    // I nodi forniti (esclusi dal calcolo del punto casuale)
+
     private static int seed = 1;
     private static List<Point2D> nodes = Arrays.asList(
             new Point2D.Double(378, 193),  // 2
@@ -44,39 +43,39 @@ public class FindPositionAndNeighbour {
         return point;
     }
 
-    // Trova il nodo più vicino al punto dato
+    // get closest mote from x,y input coordinates
     public static int findClosestNode(Point2D point) {
         double minDistance = Double.MAX_VALUE;
         int closestNodeId = -1;
 
         for (int i = 0; i < nodes.size(); i++) {
             Point2D node = nodes.get(i);
-            double distance = point.distance(node);  // Distanza euclidea
+            double distance = point.distance(node);  // euclidian
             if (distance < minDistance) {
                 minDistance = distance;
-                closestNodeId = i + 2;  // ID del nodo (2 a 15)
+                closestNodeId = i + 2;
             }
         }
 
         return closestNodeId;
     }
 
-    // Genera un punto casuale vicino ai nodi definiti
+    // generate random point in valid position
     public static Point2D getPosition() {
         Random rand = new Random(seed);
 
-        // Seleziona un nodo casuale dalla lista
+        // get random orignial mote
         Point2D baseNode = nodes.get(rand.nextInt(nodes.size()));
 
-        // Genera un offset casuale vicino al nodo
-        double offsetX = (rand.nextDouble() - 0.5) * 100; // Range di deviazione di ±50 unità
+        // offset
+        double offsetX = (rand.nextDouble() - 0.5) * 100;
         double offsetY = (rand.nextDouble() - 0.5) * 100;
 
-        // Calcola la nuova posizione attorno al nodo selezionato
+        // get new position next to the selected mote
         double newX = baseNode.getX() + offsetX;
         double newY = baseNode.getY() + offsetY;
 
-        // Incrementa il seed per garantire casualità tra chiamate successive
+
         seed++;
 
         return new Point2D.Double(newX, newY);

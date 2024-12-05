@@ -30,53 +30,51 @@ public class SimulationAF {
 
     public static void writeMotesToCsv(List<Mote> motes, String fileName) {
         try (FileWriter csvWriter = new FileWriter(fileName)) {
-            // Scrivi l'header del CSV
+            // write header
             csvWriter.append("id,parents,battery,load,dataProbability\n");
 
-            // Itera sui motes
+            // on motes
             for (Mote m : motes) {
-                // Ottieni la stringa dal metodo toString() del Mote
+                // get string resume for mote
                 String moteString = m.toString();
 
-                // Estrai i valori di MoteId, Parents, Battery, Load e DataProbability
+                // get MoteId, Parents, Battery, Load and DataProbability
                 String[] values = parseMoteString(moteString);
 
-                // Scrivi i valori nel CSV
+                // write values in CSV
                 csvWriter.append(String.join(",", values));
                 csvWriter.append("\n"); // Nuova riga per ogni Mote
             }
 
-            // Flush e chiudi il writer
+            // Flush and close
             csvWriter.flush();
-            System.out.println("CSV creato con successo: " + fileName);
+            System.out.println("CSV successfully generated: " + fileName);
 
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    // Metodo che analizza la stringa formattata dal metodo toString() del Mote
-    private static String[] parseMoteString(String moteString) {
-        // Esempio di formato: MoteId=1, Parents=3, Battery=11578,058304, Load=100, DataProbability=90
-        // Usa un'espressione regolare per estrarre i campi correttamente
 
-        // Rimuoviamo il prefisso e prendiamo solo i valori
+    private static String[] parseMoteString(String moteString) {
+        // example: MoteId=1, Parents=3, Battery=11578,058304, Load=100, DataProbability=90
+
         moteString = moteString.replace("MoteId=", "")
                 .replace("Parents=", "")
                 .replace("Battery=", "")
                 .replace("Load=", "")
                 .replace("DataProbability=", "");
 
-        // A questo punto la stringa appare come: "1, 3, 11578,058304, 100, 90"
+        // now we have: "1, 3, 11578,058304, 100, 90"
 
-        // Ora dobbiamo dividere sui valori principali e sostituire le virgole decimali nelle batterie
+        // split on commas
         String[] parts = moteString.split(", ");
 
-        // Riuniamo i campi correttamente se battery è separato a causa della virgola
+
         String moteId = parts[0]; // "1"
         String parents = parts[1]; // "3"
 
-        // Battery è nel formato "11578,058304", sostituiamo la virgola con un punto per evitare problemi
+        // correct float format
         String battery = parts[2].replace(",", "."); // "11578.058304"
 
         String load = parts[3]; // "100"
@@ -124,26 +122,6 @@ public class SimulationAF {
 
     }
 
-    private void initC1(SimulationClientAF.Case c, int x, int y, double battery, int load, int niegh){
-        // Create a simulation client object
-        networkMgmt = new SimulationClientAF(c,x,y,battery,load,niegh);
-    }
-
-    public static void main(String[] args) {
-        //SimulationAF client = new SimulationAF();
-        //client.start(SimulationClientAF.Case.DEFAULT);
-        FindPositionAndNeighbour fpn = new FindPositionAndNeighbour();
-        for (int i = 0; i<100; i++){
-
-            SimulationAF client = new SimulationAF();
-
-            Point2D point2D = getPosition();
-            int neigh = findClosestNode(point2D);
-
-            client.initC1(SimulationClientAF.Case.CASE1, (int)point2D.getX(), (int)point2D.getY(), 118800.0, 200, neigh);
-            client.start(SimulationClientAF.Case.CASE1, i, neigh);
-        }
-    }
 
     public Simulator getSimulator() {
         return networkMgmt.getSimulator();

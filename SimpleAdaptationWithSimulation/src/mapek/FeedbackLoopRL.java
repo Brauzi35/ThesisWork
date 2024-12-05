@@ -50,142 +50,36 @@ public class FeedbackLoopRL {
         this.clientAF = networkAF;
     }
 
-    private void removeAnomaly(){ //TODO per ora rimuove solo anomalia 1, dovrebbe essere agnostico all'anomalia
-
-        Simulator simul = new Simulator();
-        List<domain.Mote> motes = networkMgmt.getSimulator().getMotes();
-        List<domain.Mote> modMotes = new ArrayList<>();
-        for(domain.Mote m : motes){
-            modMotes.add(m);
-        }
-        for(int i = 0; i<modMotes.size(); i++){
 
 
-            //remove anomaly motes
-            if(modMotes.get(i).getId() < 2 || modMotes.get(i).getId() > 15) {
-                modMotes.remove(i);
-                break;
-            }
-            List<domain.Link> links = modMotes.get(i).getLinks();
-            for(domain.Link l : links){
-                if(l.getFrom().getId() > 15){
-                    links.remove(l);
-                } else if (l.getTo().getId() > 15) {
-                    links.remove(l);
-                }
-            }
-
-            modMotes.get(i).setLinks(links);
-
-
-        }
-
-
-        domain.Mote[] allMotes = modMotes.toArray(new domain.Mote[0]);
-
-
-        simul.addMotes(allMotes);
-
-        // Gateway
-        Gateway gateway = networkMgmt.getSimulator().getGatewayWithId(1);
-        gateway.setView(allMotes);
-        simul.addGateways(gateway);
-
-        // turns
-        List<Integer> oldorder = networkMgmt.getSimulator().getTurnOrder();
-        List<Integer> order = new ArrayList<>();
-
-        for(int o : oldorder){
-            if(o>1 && o<16){
-                order.add(o);
-            }
-        }
-        Integer[] turnOrderArray = order.toArray(new Integer[0]);
-        simul.setTurnOrder(turnOrderArray);
-
-        Profile<Double> interference  = networkMgmt.getSimulator().getRunInfo().getGlobalInterference();
-        simul.getRunInfo().setGlobalInterference(interference);
-
-
-        simul.setQosValues(networkMgmt.getSimulator().getQosValues());
-        simul.setRunInfo(networkMgmt.getSimulator().getRunInfo());
-        SimulationClient newSc = new SimulationClient(simul);
-        this.networkMgmt = newSc; //set new simulation client
-
-    }
-
-    public void start(int[] pwrsAdd, int[] pwrsSub, int[] dists) {
+    public void start(int pwrsAdd, int pwrsSub, int dists) {
 
         for (int i = 0; i < 95; i++) {
             monitor(pwrsAdd, pwrsSub,dists);
         }
     }
 
-    void monitor(int[] pwrsAdd, int[] pwrsSub, int[] dists) {
+    void monitor(int pwrsAdd, int pwrsSub, int dists) {
         motes = probe.getAllMotes();
 
         // perform analysis
         analysis(pwrsAdd, pwrsSub,dists);
     }
 
-    void analysis(int[] pwrsAdd, int[] pwrsSub, int[] dists) {
-        int[] bestConf = {0,0};
+    void analysis(int pwrsAdd, int pwrsSub, int dists) {
+
         if(firstTime){
-            originalMotes = motes; //TODO what if the network starts in an unfamiliar setup?
+            originalMotes = motes;
             firstTime = false;
-        } else{
-            //if it's not the first analysis iteration
-            //we should check if the network has changed its topology (and more)
-            /*
-            AnomalyDetection anomalyDetection = new AnomalyDetection();
-            anomalyDetection.init();
-            int timestamp = networkMgmt.getSimulator().getRunInfo().getRunNumber();
-            double[] point = new double[5]; //common dimension
-            ArrayList<QoS> qos = networkMgmt.getNetworkQoS(timestamp);
-            point[0] = qos.get(timestamp-1).getPacketLoss();
-            point[1] = qos.get(timestamp-1).getEnergyConsumption();
-            //total battery/mote_count
-            double tot_battery = 0.0;
-            double averagePower = 0.0;
-            double totalDistribution = 0.0;
-            int linkCount = 0;
-
-            List<domain.Mote> motes = networkMgmt.getSimulator().getMotes();
-            for(domain.Mote m : motes){
-                tot_battery += m.getBatteryRemaining();
-                List<domain.Link> links = m.getLinks();
-                for(domain.Link l : links){
-                    averagePower += l.getPowerNumber();
-                    linkCount++;
-                    totalDistribution += l.getDistribution();
-                }
-            }
-            point[2] = tot_battery/motes.size();
-            point[3] = averagePower / linkCount;
-            point[4] = totalDistribution / linkCount;
-
-             */
-            //if(anomalyDetection.checkForAnomaly(timestamp, point)){//!(originalMotes.size()==motes.size())){
-                //simulate possible scenarios and take the correct choice
-                //Simulator sim = networkMgmt.getSimulator();
-                //SimulationClient clientCopy = networkMgmt;
-                //TwinInterrogation twin = new TwinInterrogation(clientCopy);
-
-                //bestConf = twin.start();
-                //System.out.println("sarebbe meglio usare questa conf" + bestConf[0] + bestConf[1]); //TODO ok riesco ad ottenerle: ogni quanto le voglio? che ci faccio?
-            //}
         }
         // analyze all link settings
         boolean adaptationRequired = analyzeLinkSettings();
         round++;
         // if adaptation required invoke the planner
         if (adaptationRequired) {
-            //if(round%5==0) {
-               // System.out.println("better planning");
+
                 planning(pwrsAdd, pwrsSub,dists);
-           // }else {
-               // planning(0,0);
-            //}
+
         }
     }
 
@@ -205,7 +99,7 @@ public class FeedbackLoopRL {
         return false;
     }
 
-    void planning(int[] pwrsAdd, int[] pwrsSub, int[] dists) {
+    void planning(int pwrsAdd, int pwrsSub, int dists) {
 
         // Go through all links
         boolean powerChanging = false;
@@ -214,10 +108,10 @@ public class FeedbackLoopRL {
             for (Link link : mote.getLinks()) {
                 powerChanging = false;
                 if (link.getSNR() > 0 && link.getPower() > 0) {
-                    steps.add(new PlanningStep(Step.CHANGE_POWER, link, link.getPower() - pwrsSub[mote.getMoteid()-2]));
+                    steps.add(new PlanningStep(Step.CHANGE_POWER, link, link.getPower() - pwrsSub));
                     powerChanging = true;
                 } else if (link.getSNR() < 0 && link.getPower() < 15) {
-                    steps.add(new PlanningStep(Step.CHANGE_POWER, link, link.getPower() + pwrsAdd[mote.getMoteid()-2]));
+                    steps.add(new PlanningStep(Step.CHANGE_POWER, link, link.getPower() + pwrsAdd));
                     powerChanging = true;
                 }
             }
@@ -232,11 +126,11 @@ public class FeedbackLoopRL {
                         right.setDistribution(50);
                     }
                     if (left.getPower() > right.getPower() && left.getDistribution() < 100) {
-                        steps.add(new PlanningStep(Step.CHANGE_DIST, left, left.getDistribution() + dists[mote.getMoteid()-2]));
-                        steps.add(new PlanningStep(Step.CHANGE_DIST, right, right.getDistribution() - dists[mote.getMoteid()-2]));
+                        steps.add(new PlanningStep(Step.CHANGE_DIST, left, left.getDistribution() + dists));
+                        steps.add(new PlanningStep(Step.CHANGE_DIST, right, right.getDistribution() - dists));
                     } else if (right.getDistribution() < 100) {
-                        steps.add(new PlanningStep(Step.CHANGE_DIST, right, right.getDistribution() + dists[mote.getMoteid()-2]));
-                        steps.add(new PlanningStep(Step.CHANGE_DIST, left, left.getDistribution() - dists[mote.getMoteid()-2]));
+                        steps.add(new PlanningStep(Step.CHANGE_DIST, right, right.getDistribution() + dists));
+                        steps.add(new PlanningStep(Step.CHANGE_DIST, left, left.getDistribution() - dists));
                     }
                 }
             }

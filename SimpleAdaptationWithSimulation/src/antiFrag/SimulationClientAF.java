@@ -12,37 +12,45 @@ import simulator.Simulator;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
+
+import static deltaiot.client.SimulationClient.printToponomy;
 
 public class SimulationClientAF implements Probe, Effector {
 
-
+    Random random = new Random();
     /*
     my own implementation of simulation client;
-    Simulator is to be intended as the real system, this is its digital twin
+    Simulator is to be intended as the real system, this serves us to force custom anomalies
      */
     public enum Case{
         DEFAULT,
-        CASE1
+        CASE1,
+        UNKNOWN
     }
 
     private Simulator simulator;
     private double delta = 0.0;
-    public SimulationClientAF(Case c, int x, int y, double battery, int load, int neighId){
+    public SimulationClientAF(Case c, int x[], int y[], double battery, int load, int neighId[]){
         switch (c){
             case DEFAULT: this.simulator = NetworkSimulatorAF.createSimulatorForAF();
             break;
-            case CASE1: this.simulator = NetworkSimulatorAF.createSimulatorCase1(x, y, battery, load, neighId, delta);
+            case CASE1: this.simulator = NetworkSimulatorAF.createSimulatorCase1(x[0], y[0], battery, load, neighId[0], delta);
+            break;
+            case UNKNOWN: this.simulator = NetworkSimulatorAF.createSimulatorUnknown(x, y, battery, load, neighId, delta);
             break;
             default: this.simulator = NetworkSimulatorAF.createSimulatorForAF();
         }
 
     }
 
-    public SimulationClientAF(Case c, int x, int y, double battery, int load, int neighId, double delta){
+    public SimulationClientAF(Case c, int x[], int y[], double battery, int load, int neighId[], double delta){
         switch (c){
             case DEFAULT: this.simulator = NetworkSimulatorAF.createSimulatorForAF();
                 break;
-            case CASE1: this.simulator = NetworkSimulatorAF.createSimulatorCase1(x, y, battery, load, neighId, delta);
+            case CASE1: this.simulator = NetworkSimulatorAF.createSimulatorCase1(x[0], y[0], battery, load, neighId[0], delta);
+                break;
+            case UNKNOWN: this.simulator = NetworkSimulatorAF.createSimulatorUnknown(x, y, battery, load, neighId, delta);
                 break;
             default: this.simulator = NetworkSimulatorAF.createSimulatorForAF();
         }
@@ -65,6 +73,9 @@ public class SimulationClientAF implements Probe, Effector {
     @Override
     public ArrayList<Mote> getAllMotes() {
         simulator.doSingleRun();
+        //String string = "AnomalyDetectionFiles1/state"+simulator+".txt";
+        //printToponomy(simulator, string); //added myself
+
         List<domain.Mote> motes = simulator.getMotes();
         ArrayList<Mote> afMotes = new ArrayList<>();
         for (domain.Mote mote : motes) {
@@ -114,20 +125,7 @@ public class SimulationClientAF implements Probe, Effector {
         return getLink(src, dest).getDistribution();
     }
 
-//	@Override
-//	public void setLinkSF(int src, int dest, int sf) {
-//		getLink(src, dest).setSfTimeNumber(sf);
-//	}
-//
-//	@Override
-//	public void setLinkPower(int src, int dest, int power) {
-//		getLink(src, dest).setPowerNumber(power);
-//	}
-//
-//	@Override
-//	public void setLinkDistributionFactor(int src, int dest, int distributionFactor) {
-//		getLink(src, dest).setDistribution(distributionFactor);
-//	}
+
 
     @Override
     public void setMoteSettings(int moteId, List<LinkSettings> linkSettings) {

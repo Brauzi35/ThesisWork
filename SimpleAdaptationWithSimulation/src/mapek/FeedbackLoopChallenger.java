@@ -22,7 +22,7 @@ public class FeedbackLoopChallenger {
     Effector effector;
     boolean alreadyRemoved = false;
 
-    int[][] stdConf = {{1, 1, 1,1,1,1,1,1,1,1,1,1,1,1,1},{1, 1, 1,1,1,1,1,1,1,1,1,1,1,1,1},{10, 10, 10,10,10,10,10,10,10,10,10,10,10,10,10}}; //prima era lungo 2, da quando ho messo rl ho introdotto 3 gradi di libertà
+    int[] stdConf = {1,1,10};
 
 
     // Knowledge
@@ -52,7 +52,7 @@ public class FeedbackLoopChallenger {
         this.clientAF = networkAF;
     }
 
-    private void removeAnomaly(){ //TODO per ora rimuove solo anomalia 1, dovrebbe essere agnostico all'anomalia
+    private void removeAnomaly(){
 
         Simulator simul = new Simulator();
         List<domain.Mote> motes = networkMgmt.getSimulator().getMotes();
@@ -116,7 +116,7 @@ public class FeedbackLoopChallenger {
 
     }
 
-    public SimulationClient start(int[] pwrsAdd, int[] pwrsSub, int[] dists, int seed) {
+    public SimulationClient start(int pwrsAdd, int pwrsSub, int dists, int seed) {
         Random r = new Random(seed);
         for (int i = 0; i < 95; i++) {
             int c = r.nextInt(100);
@@ -126,7 +126,7 @@ public class FeedbackLoopChallenger {
             }
             if(c>limit && !alreadyRemoved){ //era 98
                 recoveredTimestamp = i;
-                System.out.println("togliamo anomalia alla run: " +i);
+                System.out.println("anomaly removed in run: " +i);
                 removeAnomaly();
                 alreadyRemoved = true;
                 return networkMgmt;
@@ -137,14 +137,14 @@ public class FeedbackLoopChallenger {
         return networkMgmt;
     }
 
-    void monitor(int[] pwrsAdd, int[] pwrsSub, int[] dists) {
+    void monitor(int pwrsAdd, int pwrsSub, int dists) {
         motes = probe.getAllMotes();
 
         // perform analysis
         analysis(pwrsAdd, pwrsSub,dists);
     }
 
-    void analysis(int[] pwrsAdd, int[] pwrsSub, int[] dists) {
+    void analysis(int pwrsAdd, int pwrsSub, int dists) {
 
         if(firstTime){
             originalMotes = motes;
@@ -178,7 +178,7 @@ public class FeedbackLoopChallenger {
         return false;
     }
 
-    void planning(int[] pwrsAdd, int[] pwrsSub, int[] dists) {
+    void planning(int pwrsAdd, int pwrsSub, int dists) {
 
         // Go through all links
         boolean powerChanging = false;
@@ -187,10 +187,10 @@ public class FeedbackLoopChallenger {
             for (Link link : mote.getLinks()) {
                 powerChanging = false;
                 if (link.getSNR() > 0 && link.getPower() > 0) {
-                    steps.add(new PlanningStep(Step.CHANGE_POWER, link, link.getPower() - pwrsSub[mote.getMoteid()-2]));
+                    steps.add(new PlanningStep(Step.CHANGE_POWER, link, link.getPower() - pwrsSub));
                     powerChanging = true;
                 } else if (link.getSNR() < 0 && link.getPower() < 15) {
-                    steps.add(new PlanningStep(Step.CHANGE_POWER, link, link.getPower() + pwrsAdd[mote.getMoteid()-2]));
+                    steps.add(new PlanningStep(Step.CHANGE_POWER, link, link.getPower() + pwrsAdd));
                     powerChanging = true;
                 }
             }
@@ -205,11 +205,11 @@ public class FeedbackLoopChallenger {
                         right.setDistribution(50);
                     }
                     if (left.getPower() > right.getPower() && left.getDistribution() < 100) {
-                        steps.add(new PlanningStep(Step.CHANGE_DIST, left, left.getDistribution() + dists[mote.getMoteid()-2]));
-                        steps.add(new PlanningStep(Step.CHANGE_DIST, right, right.getDistribution() - dists[mote.getMoteid()-2]));
+                        steps.add(new PlanningStep(Step.CHANGE_DIST, left, left.getDistribution() + dists));
+                        steps.add(new PlanningStep(Step.CHANGE_DIST, right, right.getDistribution() - dists));
                     } else if (right.getDistribution() < 100) {
-                        steps.add(new PlanningStep(Step.CHANGE_DIST, right, right.getDistribution() + dists[mote.getMoteid()-2]));
-                        steps.add(new PlanningStep(Step.CHANGE_DIST, left, left.getDistribution() - dists[mote.getMoteid()-2]));
+                        steps.add(new PlanningStep(Step.CHANGE_DIST, right, right.getDistribution() + dists));
+                        steps.add(new PlanningStep(Step.CHANGE_DIST, left, left.getDistribution() - dists));
                     }
                 }
             }

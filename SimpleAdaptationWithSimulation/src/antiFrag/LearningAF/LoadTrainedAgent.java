@@ -27,54 +27,35 @@ public class LoadTrainedAgent {
 
 
 
-    public int[][] interrogation(String pathJson, int neigh, Simulator actualNetwork, int[] currentPowerAdd, int[] currentPowerSub, int[] currentDistribution){ //TODO passare anche il tipo di anomalia
-        // Carica l'agente dal file JSON salvato durante il training
+    public int[] interrogation(String pathJson, int[] neigh, Simulator actualNetwork, int currentPowerAdd, int currentPowerSub, int currentDistribution){ //TODO passare anche il tipo di anomalia
+        // load scpecific agent (.json)
         QLearner trainedAgent = loadAgentFromJson(pathJson);
 
-        // Controllo che l'agente sia stato caricato correttamente
+
         if (trainedAgent != null) {
             System.out.println("Agent successfully loaded from JSON.");
 
-
-            // Definisci la potenza e la distribuzione iniziali
-            //int currentPowerAdd = 1;
-            //int currentPowerSub = 1;
-            //int currentDistribution = 10;
 
             List<QoS> currentSituation = actualNetwork.getQosValues();
             double avg_en = getAverageEnergy(currentSituation);
             double avg_loss = getAveragePacketLoss(currentSituation);
 
-            // Ottieni lo stato corrente
-            int currentState = getStateFromSimulation(avg_en, avg_loss, Objects.hash(currentPowerAdd), Objects.hash(currentPowerSub), Objects.hash(currentDistribution), neigh);
+            // get current state
+            int currentState = getStateFromSimulation(avg_en, avg_loss, currentPowerAdd, currentPowerSub, currentDistribution, neigh);
 
-            // L'agente seleziona la migliore azione basata sullo stato attuale
+            // get best action
             int actionId = trainedAgent.selectAction(currentState).getIndex();
             System.out.println("Agent selects action-" + actionId);
 
-            // Decodifica l'azione per determinare le modifiche alla potenza e distribuzione
-            int[] powerAdd = decodePowerAdd(actionId);
-            int[] powerSub = decodePowerSub(actionId);
-            int[] distributionChange = decodeDistributionChange(actionId);
-
-            // Aggiorna i valori di potenza e distribuzione correnti
-            /*
-            currentPowerAdd = Math.max(0, powerAdd);
-            currentPowerSub = Math.max(0, powerSub);
-            currentDistribution = Math.max(0, distributionChange);
-
-             */
+            // get policy from best action
+            int powerAdd = decodePowerAdd(actionId, 16);
+            int powerSub = decodePowerSub(actionId, 16);
+            int distributionChange = decodeDistributionChange(actionId, 16);
 
 
-            // Limita la potenza e la distribuzione ai valori massimi consentiti
-            /*
-            currentPowerAdd = Math.min(currentPowerAdd, 10);
-            currentPowerSub = Math.min(currentPowerSub, 10);
-            currentDistribution = Math.min(currentDistribution, 50);
 
-             */
 
-            int[][] ret =  {powerAdd, powerSub,distributionChange};
+            int[] ret =  {powerAdd, powerSub,distributionChange};
             return ret;
         } else {
             System.out.println("Failed to load the agent.");
@@ -86,7 +67,6 @@ public class LoadTrainedAgent {
     public static QLearner loadAgentFromJson(String jsonFilePath) {
         QLearner agent = new QLearner();
         try {
-            // Carica l'agente dal file JSON
             String json = new String(Files.readAllBytes(Paths.get(jsonFilePath)));
             agent = QLearner.fromJson(json);
         } catch (Exception e) {
@@ -96,14 +76,7 @@ public class LoadTrainedAgent {
         return agent;
     }
 
-    // Metodi di supporto:
-
-
-
-
-
-
-
+    // supportMethods:
 
 
 
@@ -111,14 +84,14 @@ public class LoadTrainedAgent {
         return qosList.stream()
                 .mapToDouble(QoS::getEnergyConsumption)
                 .average()
-                .orElse(0.0); // Restituisce 0.0 se la lista è vuota
+                .orElse(0.0); // return 0.0 if empty list
     }
 
     public static double getAveragePacketLoss(List<QoS> qosList) {
         return qosList.stream()
                 .mapToDouble(QoS::getPacketLoss)
                 .average()
-                .orElse(0.0); // Restituisce 0.0 se la lista è vuota
+                .orElse(0.0); // return 0.0 if empty list
     }
 }
 

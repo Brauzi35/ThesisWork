@@ -49,7 +49,7 @@ public class ComparePolicies {
             for (int i = 0; i < betterFiles.length; i++) {
                 System.out.println("Generating graph for simulation i=" + i);
 
-                // Dati per grafici
+                // graph data init
                 List<Double> betterPacketLoss = new ArrayList<>();
                 List<Double> betterEnergyConsumption = new ArrayList<>();
                 List<Double> standardPacketLoss = new ArrayList<>();
@@ -63,7 +63,7 @@ public class ComparePolicies {
                 String simulationInfo = fileName.substring(fileName.indexOf("simulation"), fileName.indexOf("_neigh"));
                 String neighInfo = fileName.substring(fileName.indexOf("neigh"));
 
-                // Lettura dei dati dai file CSV
+                // read data from csv
                 try {
                     readCsvData(betterFiles[i], betterPacketLoss, betterEnergyConsumption, betterNumNodesEnergy, betterFairnessIndex);
                     readCsvData(standardFiles[i], standardPacketLoss, standardEnergyConsumption, standardNumNodesEnergy, standardFairnessIndex);
@@ -71,7 +71,7 @@ public class ComparePolicies {
                     e.printStackTrace();
                 }
 
-                // Creazione dei grafici per Packet Loss, Energy Consumption, NumNodesEnergy e Fairness Index
+                // creating graphs w Packet Loss, Energy Consumption, NumNodesEnergy e Fairness Index
                 JFreeChart packetLossChart = createChart("Packet Loss Comparison - " + simulationInfo + "_" + neighInfo,
                         "Run", "Packet Loss", betterPacketLoss, standardPacketLoss);
                 JFreeChart energyChart = createChart("Energy Consumption Comparison - " + simulationInfo + "_" + neighInfo,
@@ -81,14 +81,14 @@ public class ComparePolicies {
                 JFreeChart fairnessIndexChart = createChart("Fairness Index Comparison - " + simulationInfo + "_" + neighInfo,
                         "Run", "Fairness Index", betterFairnessIndex, standardFairnessIndex);
 
-                // Dimensioni dell'immagine totale
+
                 int width = 1600;
-                int height = 1200; // Due righe di grafici
+                int height = 1200;
 
                 BufferedImage combinedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
                 Graphics2D g2 = combinedImage.createGraphics();
 
-                // Disegna i quattro grafici
+                // draw graphs
                 g2.drawImage(packetLossChart.createBufferedImage(800, 600), 0, 0, null);
                 g2.drawImage(energyChart.createBufferedImage(800, 600), 800, 0, null);
                 g2.drawImage(numNodesEnergyChart.createBufferedImage(800, 600), 0, 600, null);
@@ -96,7 +96,7 @@ public class ComparePolicies {
 
                 g2.dispose();
 
-                // Salva l'immagine combinata
+                // save png
                 try {
                     String outputFileName = outputDir + "/Comparison_" + simulationInfo + "_" + neighInfo + ".png";
                     ImageIO.write(combinedImage, "png", new File(outputFileName));
@@ -105,7 +105,7 @@ public class ComparePolicies {
                 }
             }
         } else {
-            System.out.println("Le directory non contengono lo stesso numero di file.");
+            System.out.println("directories must contain the same number of files");
         }
     }
 
@@ -139,7 +139,7 @@ public class ComparePolicies {
                     e.printStackTrace();
                 }
 
-                // Creazione dei boxplot con stile personalizzato e aggiunta delle etichette
+                // boxplots
                 JFreeChart packetLossBoxPlot = createStyledBoxPlot("Packet Loss - " + simulationInfo + "_" + neighInfo,
                         "Policy", "Packet Loss", betterPacketLoss, standardPacketLoss);
                 JFreeChart energyBoxPlot = createStyledBoxPlot("Energy Consumption - " + simulationInfo + "_" + neighInfo,
@@ -170,7 +170,7 @@ public class ComparePolicies {
                 }
             }
         } else {
-            System.out.println("Le directory non contengono lo stesso numero di file.");
+            System.out.println("directories must contain the same number of files");
         }
     }
 
@@ -186,7 +186,7 @@ public class ComparePolicies {
                 categoryAxisLabel,
                 valueAxisLabel,
                 dataset,
-                true // Attiva la legenda
+                true //legend
         );
 
         CategoryPlot plot = (CategoryPlot) boxplot.getPlot();
@@ -195,8 +195,8 @@ public class ComparePolicies {
 
         BoxAndWhiskerRenderer renderer = new BoxAndWhiskerRenderer();
         renderer.setFillBox(true);
-        renderer.setSeriesPaint(0, new Color(255, 140, 0)); // Arancione per Better Policy
-        renderer.setSeriesPaint(1, new Color(100, 149, 237)); // Blu chiaro per Standard Policy
+        renderer.setSeriesPaint(0, new Color(255, 140, 0)); // Orange - Better Policy
+        renderer.setSeriesPaint(1, new Color(100, 149, 237)); // LightBlue - Standard Policy
         renderer.setMeanVisible(true);
         renderer.setMedianVisible(true);
         renderer.setWhiskerWidth(0.5);
@@ -204,7 +204,7 @@ public class ComparePolicies {
 
         plot.setRenderer(renderer);
 
-        // Configurazione asse e font
+        // configs
         CategoryAxis domainAxis = plot.getDomainAxis();
         domainAxis.setTickLabelFont(new Font("SansSerif", Font.PLAIN, 12));
         domainAxis.setLabelFont(new Font("SansSerif", Font.BOLD, 14));
@@ -213,7 +213,7 @@ public class ComparePolicies {
         rangeAxis.setTickLabelFont(new Font("SansSerif", Font.PLAIN, 12));
         rangeAxis.setLabelFont(new Font("SansSerif", Font.BOLD, 14));
 
-        // Aggiunta della legenda
+        // legend
         LegendItemCollection legend = new LegendItemCollection();
         legend.add(new LegendItem("Better Policy", new Color(255, 140, 0)));
         legend.add(new LegendItem("Standard Policy", new Color(100, 149, 237)));
@@ -226,7 +226,7 @@ public class ComparePolicies {
     private static void readCsvData(File file, List<Double> packetLoss, List<Double> energyConsumption, List<Double> numNodesEnergy, List<Double> fairness) throws IOException {
         try (CSVReader reader = new CSVReader(new FileReader(file))) {
             String[] line;
-            reader.readNext(); // Salta l'intestazione
+            reader.readNext(); // skip header
 
             while ((line = reader.readNext()) != null) {
                 packetLoss.add(Double.parseDouble(line[1]));

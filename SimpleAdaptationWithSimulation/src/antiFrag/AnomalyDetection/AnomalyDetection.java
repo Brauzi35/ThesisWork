@@ -7,11 +7,15 @@ import java.util.regex.*;
 import java.util.stream.Collectors;
 
 import com.opencsv.CSVReader;
+import com.opencsv.CSVWriter;
 import org.apache.commons.math3.ml.distance.EuclideanDistance;
 
 public class AnomalyDetection {
 
-    // Classe per rappresentare un singolo dato (informazioni di una run) con coordinate multiple
+    /**
+     * this class aims to both construct points to identify runs and build the 9-dimensional space
+     * to get distances of runTimeData from standardData
+     */
     public static class DataPoint {
         private int runId;
         private double[] points;
@@ -30,15 +34,16 @@ public class AnomalyDetection {
         }
     }
 
-    // Mappa che contiene le informazioni "normali" (modello) indicizzate per run
+
     private static Map<Integer, DataPoint> normalModel = new HashMap<>();
-    private static int commonDimension = 9; // Dimensione fissa per ogni punto dati
+    private static int commonDimension = 9;
+    private static String folder;
 
     public static void main(String[] args) throws IOException{
-        // Directory dei file
+        // Directory standard files
         String baseDir = "AnomalyDetectionFiles";
 
-        // Carica i file qos_X.csv e stateY.txt
+
         List<File> qosFiles = Files.list(Paths.get(baseDir))
                 .filter(p -> p.toString().contains("qos_"))
                 .map(Path::toFile)
@@ -49,160 +54,237 @@ public class AnomalyDetection {
                 .map(Path::toFile)
                 .collect(Collectors.toList());
 
-        // Costruzione del modello basato sui file normali
+
         buildNormalModel(qosFiles, stateFiles);
 
-        // Supponiamo che a runtime riceviamo nuovi dati simili ai file processati
-        // Eseguiamo il confronto con i dati normali
-        double[] newRuntimeData = {0.14, 24.82968, 11874.9, 7, 7, 0.513, 15, 100, 15}; // Dati simulati ricevuti a runtime
-        int receivedRunId = 2;  // Supponiamo che abbiamo ricevuto dati per la Run 2
 
-        // Eseguiamo la rilevazione di anomalie
+
+
+        //System.out.println("sizeNormalMOdel "+normalModel.size());
+
+
+        // dummy experiment
+        double[] newRuntimeData = {0.14, 24.82968, 11874.9, 7, 7, 0.513, 15, 100, 15}; // Dati simulati ricevuti a runtime
+        int receivedRunId = 3;  // Supponiamo che abbiamo ricevuto dati per la Run 2
+
+
+
         checkForAnomaly(receivedRunId, newRuntimeData);
     }
 
-    public void init(){
-        // Directory dei file
-        try {
-            String baseDir = "AnomalyDetectionFiles";
+    public void init(String baseDir){
 
-            // Carica i file qos_X.csv e stateY.txt
-            List<File> qosFiles = Files.list(Paths.get(baseDir))
+        System.out.println("init anomalydetection from folder: " + baseDir);
+        folder = baseDir;
+        try {
+            // = "AnomalyDetectionFiles";
+
+            //qos_X.csv e stateY.txt
+            Path dir = Paths.get(baseDir);
+            System.out.println("path " + dir);
+            List<File> qosFiles = Files.list(dir)
                     .filter(p -> p.toString().contains("qos_"))
                     .map(Path::toFile)
                     .collect(Collectors.toList());
 
-            List<File> stateFiles = Files.list(Paths.get(baseDir))
+            List<File> stateFiles = Files.list(dir)
                     .filter(p -> p.toString().contains("state"))
                     .map(Path::toFile)
                     .collect(Collectors.toList());
 
-            // Costruzione del modello basato sui file normali
+
             buildNormalModel(qosFiles, stateFiles);
         }catch (Exception e){
-            System.err.println("exception");
+            System.err.println("exception in init anomalyDetection");
+            System.err.println(e.getMessage());
         }
 
     }
 
-    // Metodo per costruire il modello normale dai file iniziali
+    // normal model constructor
     public static void buildNormalModel(List<File> qosFiles, List<File> stateFiles) throws IOException {
-        // Processa i file qos_X.csv
+        // Process qos_X.csv
+        int count = 0;
+
         for (File file : qosFiles) {
             try (CSVReader reader = new CSVReader(new FileReader(file))) {
                 String[] line;
                 while ((line = reader.readNext()) != null) {
-                    if (line[0].equals("Run")) continue; // Salta l'intestazione
+                    if (line[0].equals("Run")) continue; // Skip Header
 
-                    // Dati per qos_X.csv
                     int runId = Integer.parseInt(line[0]);
+                    if (runId>95){
+                        continue;
+                    }
                     double packetLoss = Double.parseDouble(line[1]);
                     double energyConsumption = Double.parseDouble(line[2]);
                     double nodesExceedingEnergyUsage = Double.parseDouble(line[3]);
                     double nodesExceedingQueueSpace = Double.parseDouble(line[4]);
                     double fairnessIndex = Double.parseDouble(line[5]);
 
-                    // Inizializza il punto con i dati di qos_X.csv
+                    // builfing point with data from csv and txt
                     double[] point = new double[commonDimension];
                     point[0] = packetLoss;
                     point[1] = energyConsumption;
                     point[2] = nodesExceedingEnergyUsage;
                     point[3] = nodesExceedingQueueSpace;
                     point[4] = fairnessIndex;
-
-                    // Aggiungi il punto al modello normale (provvisoriamente, verrà aggiornato con i dati stateY.txt)
-                    normalModel.put(runId, new DataPoint(runId, point));
+                    double[] state = getState(stateFiles.get(Math.min(qosFiles.indexOf(file), stateFiles.size()-1)), count, runId+1);
+                    point[5] = state[0];
+                    point[6] = state[1];
+                    point[7] = state[2];
+                    point[8] = state[3];
+                    normalModel.put(count, new DataPoint(runId, point));
+                    count++;
                 }
             }
         }
+        //System.out.println("count after qos " + count);
 
-        // Processa i file stateY.txt
-        for (File file : stateFiles) {
-            int runId = -1;
-            double totalBattery = 0;
-            double averagePower = 0;
-            double totalDistribution = 0;
-            int moteCount = 0;
-            int linkCount = 0;
 
-            // Regex per estrarre i valori di battery e link
-            Pattern batteryPattern = Pattern.compile("battery=([\\d.,]+)/");
-            Pattern linkPattern = Pattern.compile("Link \\[.*power=(\\d+), distribution=(\\d+)\\]");
 
-            // Usa BufferedReader per leggere il file riga per riga
-            try (BufferedReader br = new BufferedReader(new FileReader(file))) {
-                String line;
-                while ((line = br.readLine()) != null) {
-                    if (line.startsWith("timestamp:")) {
-                        // Ottieni il timestamp (=runId)
-                        runId = Integer.parseInt(line.replace("timestamp:", "").trim());
+
+
+        //writeNormalModelToCsv();
+
+    }
+
+    public static double[] getState(File file, int count, int correspondentId) {
+        double[] ret = new double[4];
+        double totalBattery = 0;
+        double averagePower = 0;
+        double totalDistribution = 0;
+        int moteCount = 0;
+        int linkCount = 0;
+
+        // Regex to extract battery e link values
+        Pattern batteryPattern = Pattern.compile("battery=([\\d.,]+)/");
+        Pattern linkPattern = Pattern.compile("Link \\[.*power=(\\d+), distribution=(\\d+)\\]");
+
+        boolean insideFirstTimestamp = false;
+        String separator = "---------------------------------------------------";
+        boolean validRun = false;
+
+        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                line = line.trim();
+
+                // get first timestamp
+                if (line.startsWith("timestamp:")) {
+                    int runId = Integer.parseInt(line.replace("timestamp:", "").trim());
+                    // is current timestamp valid (= requested timestamp)
+                    validRun = (runId == correspondentId);
+                    // if not valid reset counts
+                    if (!validRun) {
+                        moteCount = 0;
+                        linkCount = 0;
+                        totalBattery = 0;
+                        averagePower = 0;
+                        totalDistribution = 0;
                     }
+                    continue;
+                }
 
-                    Matcher batteryMatcher = batteryPattern.matcher(line);
-                    if (batteryMatcher.find()) {
-                        // Somma le batterie dei nodi
-                        double battery = Double.parseDouble(batteryMatcher.group(1).replace(',', '.'));
-                        totalBattery += battery;
-                        moteCount++;
-                    }
+                if (!validRun) {
+                    continue; //skip non valid headers
+                }
 
-                    Matcher linkMatcher = linkPattern.matcher(line);
-                    if (linkMatcher.find()) {
-                        // Somma potenza e distribuzione dei link
-                        double power = Double.parseDouble(linkMatcher.group(1));
-                        double distribution = Double.parseDouble(linkMatcher.group(2));
-                        averagePower += power;
-                        totalDistribution += distribution;
-                        linkCount++;
-                    }
+                // stop the count if reading separator
+                if (line.equals(separator)) {
+                    break;
+                }
+
+                // count motes
+                if (line.startsWith("Mote")) {
+                    moteCount++;
+                }
+
+                // get battery values
+                Matcher batteryMatcher = batteryPattern.matcher(line);
+                if (batteryMatcher.find()) {
+                    double battery = Double.parseDouble(batteryMatcher.group(1).replace(',', '.'));
+                    totalBattery += battery;
+                }
+
+                // get link values
+                Matcher linkMatcher = linkPattern.matcher(line);
+                while (linkMatcher.find()) {
+                    double power = Double.parseDouble(linkMatcher.group(1));
+                    double distribution = Double.parseDouble(linkMatcher.group(2));
+                    averagePower += power;
+                    totalDistribution += distribution;
+                    linkCount++;
                 }
             }
+        } catch (IOException e) {
+            System.err.println("Error reading file: " + e.getMessage());
+            throw new RuntimeException(e);
+        }
 
-            // Completa il punto aggiungendo i dati di stateY.txt
-            if (moteCount > 0 && linkCount > 0 && normalModel.containsKey(runId)) {
-                double[] point = normalModel.get(runId).getPoints();
-                point[5] = totalBattery / moteCount;       // Batteria media dei nodi
-                point[6] = averagePower / linkCount;      // Potenza media sui link
-                point[7] = totalDistribution / linkCount; // Distribuzione media sui link
-                point[8] = moteCount;                      // Numero di nodi (fisso)
+        // get actual values
+        if (moteCount > 0 && linkCount > 0) {
+            ret[0] = totalBattery / moteCount;       // avg battery
+            ret[1] = averagePower / linkCount;      // avg pwr
+            ret[2] = totalDistribution / linkCount; // avg distribution
+            ret[3] = moteCount;                     // moteCount
+            //System.out.println("Mote e link count: " + moteCount + ", " + linkCount);
+        }
+
+        return ret;
+    }
+
+    public static void writeNormalModelToCsv() {
+        String folderPath = "AnomalyDetection";
+        String filePath = folderPath + "/normalModel.csv";
+
+
+        File folder = new File(folderPath);
+        if (!folder.exists()) {
+            folder.mkdirs();
+        }
+
+
+        try (CSVWriter writer = new CSVWriter(new FileWriter(filePath))) {
+            // header
+            String[] header = {"0", "1", "2", "3", "4", "5", "6", "7", "8"};
+            writer.writeNext(header);
+
+            // data
+            for (Map.Entry<Integer, DataPoint> entry : normalModel.entrySet()) {
+                double[] points = entry.getValue().getPoints();
+                String[] row = Arrays.stream(points)
+                        .mapToObj(Double::toString)
+                        .toArray(String[]::new);
+                writer.writeNext(row);
             }
+
+            //System.out.println("File scritto con successo: " + filePath);
+
+        } catch (IOException e) {
+            System.err.println("error: " + e.getMessage());
         }
     }
 
 
 
-    /**
-     *
-     * double[] point = new double[commonDimension];
-     * point[0] = packetLoss;            Percentuale di pacchetti persi (dal file qos_X.csv)
-     * point[1] = energyConsumption;     Consumo energetico (dal file qos_X.csv)
-     * point[2] = totalBattery / moteCount;  Batteria media dei nodi (dal file stateY.txt)
-     * point[3] = averagePower / linkCount;  Potenza media sui link (dal file stateY.txt)
-     * point[4] = totalDistribution / linkCount;  Distribuzione media dei pacchetti sui link (dal file stateY.txt)
-     */
+
 
 
     public static boolean checkForAnomaly(int runId, double[] newRuntimeData) { //newRuntimeData = point
-        if (!normalModel.containsKey(runId)) {
-            System.err.println("timestamp not found "+ runId); //TODO ora siamo in un ambiente simulato e quindi per id intendo timestamp, ma se avessi orari dovrei essere più flessibile
-            return false;
-        }
-
-        // normal = no anomaly
-        double[] normalData = normalModel.get(runId).getPoints();
-        EuclideanDistance distanceCalculator = new EuclideanDistance();
-
-        // Calcola la distanza tra i dati runtime e i dati normali
-        double distance = distanceCalculator.compute(newRuntimeData, normalData);
-        System.out.println("Distanza dai dati normali: " + distance);
 
 
-        double anomalyThreshold = 300.0;  // TODO capire se la soglia è ok
+        // get distance between runtime and normal data
+        double distance = getDistancepvt(runId, newRuntimeData);//distanceCalculator.compute(newRuntimeData, normalData);
+        System.out.println("distance from normal data is: " + distance);
+        System.out.println("Folder "+folder +" runId" + runId);
+
+        double anomalyThreshold = 20.0;
         if (distance > anomalyThreshold) {
-            System.out.println("Anomalia rilevata nella Run ID " + runId);
+            System.out.println("Anomaly in Run ID " + runId);
             return true;
         } else {
-            System.out.println("Situazione normale per la Run ID " + runId);
+            System.out.println("No anomapy in Run ID " + runId);
             return false;
         }
     }
@@ -211,16 +293,48 @@ public class AnomalyDetection {
 
 
         // normal = no anomaly
-        double[] normalData = normalModel.get(runId).getPoints();
-        EuclideanDistance distanceCalculator = new EuclideanDistance();
+        return realDistance(runId, newRuntimeData);
+    }
 
-        // Calcola la distanza tra i dati runtime e i dati normali
-        double distance = distanceCalculator.compute(newRuntimeData, normalData);
+    private static double getDistancepvt(int runId, double[] newRuntimeData) {
+
+
+        // normal = no anomaly
+        return realDistance(runId, newRuntimeData);
+    }
+
+    private static double realDistance(int runId, double[] newRuntimeData) {
+        int stop = normalModel.size();
+        stop = Math.min(stop, 9500); //my case limitation
+        double distance = Double.MAX_VALUE;
+        for(int i = 0; i<stop; i++) {
+            DataPoint dataPoint = normalModel.get(i);
+            double[] normalData = normalModel.get(i).getPoints();
+            if(i<1) {
+                System.out.println("timestamp " + runId + " folder " + folder);
+                System.out.println("newRunTimeData " + Arrays.toString(newRuntimeData));
+                System.out.println("normaldata " + Arrays.toString(normalData));
+            }
+            if(dataPoint.runId == runId){
+                //System.out.println("size normal model: "+normalModel.size());
+
+                EuclideanDistance distanceCalculator = new EuclideanDistance();
+
+                // Calcola la distanza tra i dati runtime e i dati normali
+
+                distance = Math.min(distanceCalculator.compute(newRuntimeData, normalData),distance);
+                //System.out.println("distance to be discovered " + Arrays.toString(normalData));
+            }
+        }
         return distance;
     }
 
-    // Metodo statico per recuperare il modello normale
+
     public static Map<Integer, DataPoint> getNormalModel() {
         return normalModel;
+    }
+
+    public static void setNormalModel(Map<Integer, DataPoint> normalModel) {
+        AnomalyDetection.normalModel = normalModel;
     }
 }

@@ -10,7 +10,7 @@ public class Mote extends Node {
 	private double batteryRemaining;
 	
 	private int load; // = number of packets to send in a turn
-	private Profile<Double> activationProbability = new Constant<>(1.0); // = chance this mote will send packets
+	private Profile<Double> activationProbability = new Constant<>(1.0); // = probability this mote will send packets
 	
 	private List<Link> links = new ArrayList<>();
 	private List<Packet> packetQueue = new ArrayList<>();
@@ -107,6 +107,7 @@ public class Mote extends Node {
 		        	countDistribution += link.getDistribution();
 		            if (countDistribution >= rand) {
 		                packet.setDestination(link.getDirection());
+						//System.out.println(link.getDirection());
 		            	break;
 		            }
 		        }
@@ -114,6 +115,7 @@ public class Mote extends Node {
 		}
 		// 3. Notify the gateways they can expect packages, so they can easily calculate packet loss
 		for(Packet packet: myPackets) {
+			//System.err.println(packet.getSource());
 			packet.getDestination().addPacketToExpect();
 		}
 		

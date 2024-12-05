@@ -21,7 +21,7 @@ public class FileProfile implements Profile<Double> {
 			return val;
 		}
 		else {
-			System.out.println("Unknown value data for run " + runNumber + " returning default (" + defaultValue + ").");
+			//System.out.println("Unknown value data for run " + runNumber + " returning default (" + defaultValue + ").");
 			return defaultValue;
 		}
 

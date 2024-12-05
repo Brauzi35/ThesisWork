@@ -1,8 +1,12 @@
 package mapek;
 
+import antiFrag.AnomalyBuilder.AnomalyGeneralizer;
+import antiFrag.AnomalyBuilder.BaseNetwork;
 import antiFrag.AnomalyDetection.AnomalyDetection;
+import antiFrag.LearningAF.RL;
 import antiFrag.SimulationClientAF;
 import antiFrag.TwinInterrogation;
+import antiFrag.Utils.CsvWriter;
 import antiFrag.Utils.MovingAverageAF;
 import deltaiot.client.Effector;
 import deltaiot.client.Probe;
@@ -16,6 +20,12 @@ import simulator.QoS;
 import simulator.Simulator;
 
 import java.util.*;
+
+import static antiFrag.AnomalyBuilder.AnomalyBuilder.replicateAnomalyVariation;
+import static antiFrag.BetterFeedbackAF.writeQoSToCSV;
+import static antiFrag.Utils.FileLister.addNewFolderToConfig;
+import static antiFrag.Utils.FileLister.getFileNamesFromDirectory;
+import static main.AFAdaptation.getFolders;
 
 public class FeedbackLoopAFReactive {
 
@@ -31,19 +41,22 @@ public class FeedbackLoopAFReactive {
     List<PlanningStep> steps = new LinkedList<>();
 
     private int recoveredTimestamp = -1;
-    int[][] prevConf = {{1, 1, 1,1,1,1,1,1,1,1,1,1,1,1,1},{1, 1, 1,1,1,1,1,1,1,1,1,1,1,1,1},{10, 10, 10,10,10,10,10,10,10,10,10,10,10,10,10}};
-
+    int[] prevConf = {1,1,10};
     AnomalyDetection anomalyDetection;
     boolean alreadyRemoved = false;
+    private boolean initRecovery = false;
 
-    MovingAverageAF movingAverageAF = new MovingAverageAF();
+    MovingAverageAF movingAverageAF;
     public FeedbackLoopAFReactive() {
         anomalyDetection = new AnomalyDetection();
-        anomalyDetection.init();
+        anomalyDetection.init("AnomalyDetectionFiles");
+        movingAverageAF = new MovingAverageAF();
     }
 
     public FeedbackLoopAFReactive(AnomalyDetection anomalyDetection){
+
         this.anomalyDetection=anomalyDetection;
+        this.movingAverageAF = new MovingAverageAF();
     }
 
     int round = 0;
@@ -60,7 +73,7 @@ public class FeedbackLoopAFReactive {
         this.clientAF = networkAF;
     }
 
-    public void removeAnomaly(){ //TODO per ora rimuove solo anomalia 1, dovrebbe essere agnostico all'anomalia
+    public void removeAnomaly(){
 
         Simulator simul = new Simulator();
         List<domain.Mote> motes = networkMgmt.getSimulator().getMotes();
@@ -68,24 +81,33 @@ public class FeedbackLoopAFReactive {
         for(domain.Mote m : motes){
             modMotes.add(m);
         }
-        for(int i = 0; i<modMotes.size(); i++){
+        int count = 0;
+        int excessMotes = modMotes.size() - 14; //the original motes are 14
+        int stop = modMotes.size();
+        for(int i = 0; i<stop; i++){
 
 
             //remove anomaly motes
-            if(modMotes.get(i).getId() < 2 || modMotes.get(i).getId() > 15) {
-                modMotes.remove(i);
+            if(modMotes.get(i-count).getId() < 2 || modMotes.get(i-count).getId() > 15) {
+                modMotes.remove(i-count);
+                count++;
+
+            }
+            if(count==excessMotes){
                 break;
             }
-            List<domain.Link> links = modMotes.get(i).getLinks();
-            for(domain.Link l : links){
-                if(l.getFrom().getId() > 15){
-                    links.remove(l);
-                } else if (l.getTo().getId() > 15) {
-                    links.remove(l);
+            if(modMotes.get(i).getId() >= 2 && modMotes.get(i).getId() <= 15) {
+                List<domain.Link> links = modMotes.get(i).getLinks();
+                for (domain.Link l : links) {
+                    if (l.getFrom().getId() > 15) {
+                        links.remove(l);
+                    } else if (l.getTo().getId() > 15) {
+                        links.remove(l);
+                    }
                 }
-            }
 
-            modMotes.get(i).setLinks(links);
+                modMotes.get(i).setLinks(links);
+            }
 
 
         }
@@ -143,8 +165,9 @@ public class FeedbackLoopAFReactive {
                 recoveredTimestamp = i;
 
 
-                System.out.println("togliamo anomalia alla run: " +i);
+                System.out.println("removing anomaly in run: " +i);
                 removeAnomaly();
+                //System.out.println("motes post remotion " + networkMgmt.getSimulator().getMotes());
                 alreadyRemoved = true;
 
 
@@ -152,8 +175,9 @@ public class FeedbackLoopAFReactive {
 
 
             if(alreadyRemoved){
+                System.out.println("motes post remotion " + networkMgmt.getSimulator().getMotes());
                 if(movingAverageAF.isRecovery()) {
-                    System.out.println("recovery trovata alla run: " +i);
+                    System.out.println("recovery activated in run: " +i);
                     return networkMgmt;
                 }
             }
@@ -186,27 +210,27 @@ public class FeedbackLoopAFReactive {
     }
 
     void analysis() {
-        int[][] bestConf = {{1, 1, 1,1,1,1,1,1,1,1,1,1,1,1,1},{1, 1, 1,1,1,1,1,1,1,1,1,1,1,1,1},{10, 10, 10,10,10,10,10,10,10,10,10,10,10,10,10}}; //prima era lungo 2, da quando ho messo rl ho introdotto 3 gradi di libertà
+        int[] bestConf = {1,1,10};
         boolean isAnomaly = false;
+        //System.out.println("First time " + firstTime);
         if(firstTime){
-            originalMotes = motes; //TODO what if the network starts in an unfamiliar setup?
-            firstTime = false;
-        } else{
-            //if it's not the first analysis iteration
-            //we should check if the network has changed its topology (and more)
+            originalMotes = motes;
+
+        }
+            //get anomaly type
 
             int timestamp = networkMgmt.getSimulator().getRunInfo().getRunNumber();
-            double[] point = new double[9]; // Punto con 9 dimensioni
+            double[] point = new double[9]; // 9 dims
             ArrayList<QoS> qos = networkMgmt.getNetworkQoS(timestamp);
 
-            // Dati da qos
+            // from qos
             point[0] = qos.get(timestamp - 1).getPacketLoss();
             point[1] = qos.get(timestamp - 1).getEnergyConsumption();
             point[2] = qos.get(timestamp - 1).getNumNodesEnergy();
             point[3] = qos.get(timestamp - 1).getNumNodesLoss();
             point[4] = qos.get(timestamp - 1).getFairnessIndex();
 
-            // Calcolo dei dati aggregati dai nodi e dai link
+            // get aggregates values
             double totBattery = 0.0;
             double averagePower = 0.0;
             double totalDistribution = 0.0;
@@ -214,101 +238,172 @@ public class FeedbackLoopAFReactive {
 
             List<domain.Mote> motes = networkMgmt.getSimulator().getMotes();
             for (domain.Mote m : motes) {
-                totBattery += m.getBatteryRemaining(); // Batteria rimanente
+                totBattery += m.getBatteryRemaining(); // remaining battery
                 List<domain.Link> links = m.getLinks();
                 for (domain.Link l : links) {
-                    averagePower += l.getPowerNumber();      // Potenza sul link
-                    totalDistribution += l.getDistribution(); // Distribuzione sul link
+                    averagePower += l.getPowerNumber();      // power on link
+                    totalDistribution += l.getDistribution(); // dist on link
                     linkCount++;
                 }
             }
 
-            // Dati calcolati dai nodi e dai link
-            point[5] = totBattery / motes.size();       // Batteria media dei nodi
-            point[6] = linkCount > 0 ? averagePower / linkCount : 0.0; // Potenza media sui link
-            point[7] = linkCount > 0 ? totalDistribution / linkCount : 0.0; // Distribuzione media sui link
-            point[8] = motes.size();                    // Numero totale di nodi
+            // from motes and links
+            point[5] = totBattery / motes.size();       // avg battery
+            point[6] = linkCount > 0 ? averagePower / linkCount : 0.0; // avg power
+            point[7] = linkCount > 0 ? totalDistribution / linkCount : 0.0; // avg dist
+            point[8] = motes.size();                    // #motes
 
-            timestamp = Math.min(94, timestamp); // Limita il timestamp massimo a 96
+            timestamp = Math.min(94, timestamp);
 
-            isAnomaly = anomalyDetection.checkForAnomaly(timestamp, point);
+            isAnomaly = anomalyDetection.checkForAnomaly(timestamp, point); //is anomaly?
+            String path = "JsonRL/CASE1.json";
+            if(isAnomaly && firstTime) {
+                //should enter here just one time
+                List<String> folders = getFolders("SimpleAdaptationWithSimulation/src/antiFrag/AnomalyDetection/config.properties");
+                ArrayList<Double> distances = new ArrayList<>();
+                for (String f : folders) {
+                    AnomalyDetection whichAnomaly = new AnomalyDetection();
+                    whichAnomaly.init(f);
+                    System.out.println(f);
+                    distances.add(whichAnomaly.getDistance(timestamp, point));
+                }
+                int minIndex = 0;
+                double minDist = distances.get(0);
+                for(int i = 1; i<distances.size(); i++){
+
+                    if(distances.get(i) < minDist){
+                        minDist = distances.get(i);
+                        minIndex = i;
+                    }
+                }
+                //System.out.println("folders: "+folders);
+                System.out.println("min dist: "+minDist + " distances " + distances );
+
+                List<String> fileNames = getFileNamesFromDirectory("JsonRL");
+                System.out.println(fileNames);
+                if(minDist < 2000){ //is plausible that this is a known anomaly
+                    System.out.println("known anomaly");
+                    path = "JsonRL/"+fileNames.get(minIndex+1);
+                }else if (minDist < 9000){// is plausible that this is an anomaly similar to a known one
+                    System.out.println("unknown anomaly similar to known anomaly");
+
+                    BaseNetwork baseNetwork = new BaseNetwork();
+                    AnomalyGeneralizer anomalyGeneralizer = baseNetwork.analyzeUnknownAnomaly(networkMgmt.getSimulator());
+                    RL rl = new RL(anomalyGeneralizer);
+                    rl.setDimMotes(motes.size());
+                    path = "JsonRL/"+fileNames.get(minIndex+1);
+                    String newPath = "JsonRL/CASE"+(minIndex+2)+".json";
+                    rl.transferLearning("JsonRL/"+fileNames.get(minIndex+1), newPath);
+
+                    //Knowledge portion
+                    knowledge(newPath, anomalyGeneralizer);
+
+                }else { //unknown anomaly, cannot find a similar one
+                    System.out.println("unknown anomaly");
+                    BaseNetwork baseNetwork = new BaseNetwork();
+                    AnomalyGeneralizer anomalyGeneralizer = baseNetwork.analyzeUnknownAnomaly(networkMgmt.getSimulator());
+                    RL rl = new RL(anomalyGeneralizer);
+                    rl.setDimMotes(motes.size());
+                    String newPath = "JsonRL/CASE"+(minIndex+2)+".json";
+                    rl.fromScratchLearning(newPath);
+
+                    //Knowledge portion
+                    knowledge(newPath, anomalyGeneralizer);
+                }
+                System.out.println("path "+path);
+            }
+
+            //anomalyDetection.init("AnomalyDetectionFiles");
             movingAverageAF.update(anomalyDetection.getDistance(timestamp, point));
-            if(isAnomaly && !alreadyRemoved){//!(originalMotes.size()==motes.size())){ //TODO implementare un modo vero per accorgermi di un problema
-                //simulate possible scenarios and take the correct choice
+            if(isAnomaly && !alreadyRemoved){
+
                 //Simulator sim = networkMgmt.getSimulator();
-                SimulationClient clientCopy = networkMgmt; //TODO probabilmente inutile in quanto shallow copy
+                SimulationClient clientCopy = networkMgmt;
                 TwinInterrogation twin = new TwinInterrogation(clientCopy);
 
                 //bestConf = twin.start();
-                bestConf = twin.startRL(prevConf);
-                System.out.println("round: "+round+"sarebbe meglio usare questa conf; " + bestConf[0] + ", "+bestConf[1]+ ", "+bestConf[2]); //TODO rendere dinamico, deve funzionare in funzione dei gradi di libertà, serve file conf
+                if(firstTime) {
+                    bestConf = twin.startRL(prevConf, path);
+                    prevConf = bestConf;
+                    firstTime = false;
+                }
+                System.out.println("round: "+round+" best conf: " + prevConf[0] + ", "+prevConf[1]+ ", "+prevConf[2]);
             }
-        }
+
         // analyze all link settings
         boolean adaptationRequired = analyzeLinkSettings();
         round++;
         // if adaptation required invoke the planner
-        if (adaptationRequired && round%10 == 0) {
+        if (adaptationRequired) {
             System.out.println("round: "+round);
-            if(!alreadyRemoved) {
-
-                System.out.println("better planning");
-                planning(bestConf[0], bestConf[1], bestConf[2]);
-                //prevConf = bestConf;
-            }else {
-                System.err.println("non dovrebbe entrare mai qui");
-                std_planning(); //default settings
-            }
+            planning(prevConf[0], prevConf[1], prevConf[2]);
         }
     }
 
     void provv_analysis() {
-        int[][] bestConf = {{1, 1, 1,1,1,1,1,1,1,1,1,1,1,1,1},{1, 1, 1,1,1,1,1,1,1,1,1,1,1,1,1},{10, 10, 10,10,10,10,10,10,10,10,10,10,10,10,10}}; //prima era lungo 2, da quando ho messo rl ho introdotto 3 gradi di libertà
-        if(firstTime){
-            SimulationClient clientCopy = networkMgmt; //TODO probabilmente inutile in quanto shallow copy
+        int[] bestConf = {1,1,10};
+
+
+
+        int timestamp = networkMgmt.getSimulator().getRunInfo().getRunNumber();
+        if(!alreadyRemoved && timestamp<94){
+            return;
+        }
+        double[] point = new double[9];
+        ArrayList<QoS> qos = networkMgmt.getNetworkQoS(timestamp);
+        // from qos
+        point[0] = qos.get(timestamp - 1).getPacketLoss();
+        point[1] = qos.get(timestamp - 1).getEnergyConsumption();
+        point[2] = qos.get(timestamp - 1).getNumNodesEnergy();
+        point[3] = qos.get(timestamp - 1).getNumNodesLoss();
+        point[4] = qos.get(timestamp - 1).getFairnessIndex();
+
+
+        double totBattery = 0.0;
+        double averagePower = 0.0;
+        double totalDistribution = 0.0;
+        int linkCount = 0;
+
+        List<domain.Mote> motes = networkMgmt.getSimulator().getMotes();
+        for (domain.Mote m : motes) {
+            totBattery += m.getBatteryRemaining();
+            List<domain.Link> links = m.getLinks();
+            for (domain.Link l : links) {
+                averagePower += l.getPowerNumber();
+                totalDistribution += l.getDistribution();
+                linkCount++;
+            }
+        }
+
+
+        point[5] = totBattery / motes.size();
+        point[6] = linkCount > 0 ? averagePower / linkCount : 0.0;
+        point[7] = linkCount > 0 ? totalDistribution / linkCount : 0.0;
+        point[8] = motes.size();
+
+        timestamp = Math.min(94, timestamp);
+        //double distance = anomalyDetection.getDistance(timestamp, point);
+        if(!initRecovery) {
+            anomalyDetection.init("AnomalyDetectionFiles");
+            initRecovery=true;
+        }
+        boolean isAnomaly = anomalyDetection.checkForAnomaly(timestamp, point);
+        if(isAnomaly){
+            System.out.println("still recovering");
+            SimulationClient clientCopy = networkMgmt;
             TwinInterrogation twin = new TwinInterrogation(clientCopy);
 
             //bestConf = twin.start();
             bestConf = twin.startRecovery(prevConf);
             prevConf = bestConf;
 
-
-
-
-            firstTime = false;
+        }else{
+            prevConf = new int[]{1, 1, 10};
+            System.out.println("recovered, returning to standard policy");
         }
-        /*
-        int timestamp = networkMgmt.getSimulator().getRunInfo().getRunNumber();
-        double[] point = new double[5]; //common dimension
-        ArrayList<QoS> qos = networkMgmt.getNetworkQoS(timestamp);
-        point[0] = qos.get(timestamp-1).getPacketLoss();
-        point[1] = qos.get(timestamp-1).getEnergyConsumption();
-        //total battery/mote_count
-        double tot_battery = 0.0;
-        double averagePower = 0.0;
-        double totalDistribution = 0.0;
-        int linkCount = 0;
-
-        List<domain.Mote> motes = networkMgmt.getSimulator().getMotes();
-        for(domain.Mote m : motes){
-            tot_battery += m.getBatteryRemaining();
-            List<domain.Link> links = m.getLinks();
-            for(domain.Link l : links){
-                averagePower += l.getPowerNumber();
-                linkCount++;
-                totalDistribution += l.getDistribution();
-            }
-        }
-        point[2] = tot_battery/motes.size();
-        point[3] = averagePower / linkCount;
-        point[4] = totalDistribution / linkCount;
-        timestamp = Math.max(timestamp, 95);
-        System.out.println("distanza: "+anomalyDetection.getDistance(timestamp, point));
 
 
-         */
-        //if it's not the first analysis iteration
-        //we should check if the network has changed its topology (and more)
+
         planning(prevConf[0], prevConf[1], prevConf[2]);
 
 
@@ -330,9 +425,42 @@ public class FeedbackLoopAFReactive {
         return false;
     }
 
+    void knowledge(String path, AnomalyGeneralizer anomalyGeneralizer){
+        //update config file
+        String newFolder = addNewFolderToConfig("SimpleAdaptationWithSimulation/src/antiFrag/AnomalyDetection/config.properties");
+        //get runs information
+        for(int i = 0; i<100; i++){
+            Simulator simulator = replicateAnomalyVariation(i, anomalyGeneralizer);
+            SimulationClient sc = new SimulationClient(simulator, true, newFolder);
+
+            // Create Feedback loop
+            FeedbackLoop feedbackLoop = new FeedbackLoop();
+
+            // get probe and effectors
+            Probe probe = sc.getProbe();
+            Effector effector = sc.getEffector();
+
+            // Connect probe and effectors with feedback loop
+            feedbackLoop.setProbe(probe);
+            feedbackLoop.setEffector(effector);
+
+            // StartFeedback loop
+            feedbackLoop.start(); //Start fa partire il loop
+
+            ArrayList<QoS> result = sc.getNetworkQoS(96);
+
+            writeQoSToCSV(result, newFolder+"/qos_"+i+".csv");
+        }
+        //we save new json in RL
 
 
-    void planning(int[] powAdd, int[] powSub, int[] dist) {
+    }
+
+
+
+
+
+    void planning(int powAdd, int powSub, int dist) {
 
         // Go through all links
         boolean powerChanging = false;
@@ -342,10 +470,10 @@ public class FeedbackLoopAFReactive {
             for (Link link : mote.getLinks()) {
                 powerChanging = false;
                 if (link.getSNR() > 0 && link.getPower() > 0) {
-                    steps.add(new PlanningStep(Step.CHANGE_POWER, link, link.getPower() - powSub[mote.getMoteid()-2]));
+                    steps.add(new PlanningStep(Step.CHANGE_POWER, link, link.getPower() - powSub));
                     powerChanging = true;
                 } else if (link.getSNR() < 0 && link.getPower() < 15) {
-                    steps.add(new PlanningStep(Step.CHANGE_POWER, link, link.getPower() + powAdd[mote.getMoteid()-2]));
+                    steps.add(new PlanningStep(Step.CHANGE_POWER, link, link.getPower() + powAdd));
                     powerChanging = true;
                 }
             }
@@ -360,11 +488,11 @@ public class FeedbackLoopAFReactive {
                         right.setDistribution(50);
                     }
                     if (left.getPower() > right.getPower() && left.getDistribution() < 100) {
-                        steps.add(new PlanningStep(Step.CHANGE_DIST, left, left.getDistribution() + dist[mote.getMoteid()-2]));
-                        steps.add(new PlanningStep(Step.CHANGE_DIST, right, right.getDistribution() - dist[mote.getMoteid()-2]));
+                        steps.add(new PlanningStep(Step.CHANGE_DIST, left, left.getDistribution() + dist));
+                        steps.add(new PlanningStep(Step.CHANGE_DIST, right, right.getDistribution() - dist));
                     } else if (right.getDistribution() < 100) {
-                        steps.add(new PlanningStep(Step.CHANGE_DIST, right, right.getDistribution() + dist[mote.getMoteid()-2]));
-                        steps.add(new PlanningStep(Step.CHANGE_DIST, left, left.getDistribution() - dist[mote.getMoteid()-2]));
+                        steps.add(new PlanningStep(Step.CHANGE_DIST, right, right.getDistribution() + dist));
+                        steps.add(new PlanningStep(Step.CHANGE_DIST, left, left.getDistribution() - dist));
                     }
                 }
             }

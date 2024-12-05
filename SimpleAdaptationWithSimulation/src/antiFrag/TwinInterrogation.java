@@ -81,24 +81,34 @@ public class TwinInterrogation {
         return ret;
     }
 
-    public int[][] startRL(int[][] prevConf){ //TODO passare il caso individuato dall'anomaly detection, andrebbe messo nello stato del RL
+    public int[] startRL(int[] prevConf, String path){
         Simulator copy = buildCloneNetwork(actualNetwork);
         LoadTrainedAgent rl = new LoadTrainedAgent();
-        String path = "JsonRL/CASE1.json";
-        List<Link> links = copy.getMoteWithId(16).getLinks();//TODO non possiamo assumere che sia anomalia 1 e che il nodo abbia 16 come id
+        //String path = "JsonRL/CASE1.json";
+        List<Link> links = copy.getMoteWithId(16).getLinks();
         int neigh = 0;
+        int[] neighArr = {0,0};
         for (Link link : links) {
-            neigh = link.getTo().getId(); // get neigh
+            neighArr[0] = link.getTo().getId(); // get neigh
         }
-        return rl.interrogation(path, neigh, copy, prevConf[0], prevConf[1],prevConf[2]);
+        try {
+            links = copy.getMoteWithId(17).getLinks();
+            for (Link link : links) {
+                neighArr[1] = link.getTo().getId(); // get neigh
+            }
+        }catch (Exception e){
+            //System.err.println("anomaly case 1");
+        }
+
+        return rl.interrogation(path, neighArr, copy, prevConf[0], prevConf[1],prevConf[2]);
     }
 
-    public int[][] startRecovery(int[][] prevConf){ //TODO passare il caso individuato dall'anomaly detection
+    public int[] startRecovery(int[] prevConf){
         Simulator copy = buildCloneNetwork(actualNetwork);
         LoadTrainedAgent rl = new LoadTrainedAgent();
-        String path = "JsonRL/recoveryFromAnomaly.json";
-
-        return rl.interrogation(path, 0, copy, prevConf[0], prevConf[1],prevConf[2]);
+        String path = "JsonRL/recoveryFromAnomaly.json"; //TODO it could be best to use costume recoveries
+        int arr[] = {0,0};
+        return rl.interrogation(path, arr, copy, prevConf[0], prevConf[1],prevConf[2]);
     }
 
     public void setActualNetwork(SimulationClient sc){

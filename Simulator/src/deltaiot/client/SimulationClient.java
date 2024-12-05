@@ -24,6 +24,8 @@ public class SimulationClient implements Probe, Effector {
 
 	List<String> log = new LinkedList<String>();
 	int randomNumber;
+	private boolean writeInfos = false;
+	private String folderName = null;
 	
 	public SimulationClient(){
 
@@ -37,6 +39,14 @@ public class SimulationClient implements Probe, Effector {
 		this.simulator = simulator;
 	}
 
+	public SimulationClient(Simulator simulator, boolean writeInfos, String folderName) {
+		this.simulator = simulator;
+		this.writeInfos = writeInfos;
+		this.folderName = folderName;
+
+
+	}
+
 
 
 	@Override
@@ -45,9 +55,11 @@ public class SimulationClient implements Probe, Effector {
 		simulator.doSingleRun();
 
 
+		if(writeInfos){
+			String string = folderName +"/state"+this.simulator+".txt";
+			printToponomy(simulator, string); //added myself
+		}
 
-		//String string = "AnomalyDetectionFiles/state"+this.randomNumber+".txt";
-		//printToponomy(simulator, string); //added myself
 		List<Mote> motes = simulator.getMotes();
 		ArrayList<deltaiot.services.Mote> afMotes = new ArrayList<>();
 		for (Mote mote : motes) {

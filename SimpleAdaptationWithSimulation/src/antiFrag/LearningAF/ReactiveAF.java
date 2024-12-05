@@ -16,7 +16,7 @@ import java.util.List;
 public class ReactiveAF {
 
     /**
-     * feedback loop created to perform preventive adaptation
+     * outdated
      */
 
     Probe probe;

@@ -52,7 +52,7 @@ public class SimpleAdaptation {
 
 
 		ArrayList<QoS> result = networkMgmt.getNetworkQoS(96);
-		writeQoSToCSV(result, "AnomalyDetectionFiles/qos_"+counter+".csv");
+		//writeQoSToCSV(result, "AnomalyDetectionFiles/qos_"+counter+".csv");
 		System.out.println("Run, PacketLoss, EnergyConsumption, NodesExcedingEnergyusage, NodesExcedingQueueSpace, Fairnessindex");
 		result.forEach(qos -> System.out.println(qos));
 

@@ -17,6 +17,7 @@ public class Simulator {
 	private List<Integer> turnOrder = new ArrayList<>();
 	private RunInfo runInfo = new RunInfo();
 	private List<QoS> qosValues = new ArrayList<>();
+
 	
 	// Constructor
 	public Simulator() {
@@ -136,6 +137,7 @@ public class Simulator {
 			Mote mote = getMoteWithId(id);
 			// Let mote handle its turn
 			mote.handleTurn(runInfo); //return value doesn't include packets send for other motes, only its own packets
+
 		}
 
 		//QoS

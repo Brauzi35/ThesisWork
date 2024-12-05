@@ -10,7 +10,10 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class RunCsvAggregator {
-
+    /**
+     * outdated
+     * @param args
+     */
     public static void main(String[] args) {
         // Cartella con i file CSV
         String folderPath = "SimulationAFDataC1";  // Modifica il percorso in base alla tua struttura

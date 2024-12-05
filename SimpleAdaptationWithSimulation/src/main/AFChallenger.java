@@ -4,6 +4,7 @@ import antiFrag.LearningAF.Move;
 import antiFrag.LearningAF.RL;
 import antiFrag.SimulationClientAF;
 import antiFrag.Utils.CsvWriter;
+import antiFrag.Utils.WealthScore;
 import com.github.chen0040.rl.learning.qlearn.QLearner;
 import deltaiot.client.Effector;
 import deltaiot.client.Probe;
@@ -18,6 +19,7 @@ import java.util.*;
 import static antiFrag.LearningAF.RL.*;
 import static antiFrag.Position.FindPositionAndNeighbour.findClosestNode;
 import static antiFrag.Position.FindPositionAndNeighbour.getPosition;
+import static antiFrag.Utils.CsvWriter.writeOrUpdateScoreToCSV;
 
 public class AFChallenger {
     /**
@@ -27,16 +29,16 @@ public class AFChallenger {
 
     static int discr_energyusageLevels = 10;
     static int discr_lossLevels = 10;
-    static int discr_changePower = 5; // numero di livelli per `powerAdd` e `powerSub`
+    static int discr_changePower = 5; // #levels `powerAdd` and `powerSub`
     static int discr_changeDistr = 5;
-    static double epsilon = 1.0; // Probabilità di esplorazione (10%)
+    static double epsilon = 1.0;
     static Random random = new Random();
     static private CsvWriter csvWriter = new CsvWriter();
 
 
 
     public static void start(){
-        int stateCount = discr_energyusageLevels * discr_lossLevels*15;//discr_energyusageLevels * discr_lossLevels * discr_changePower * discr_changePower * discr_changeDistr;
+        int stateCount = discr_energyusageLevels * discr_lossLevels*15*2;//discr_energyusageLevels * discr_lossLevels * discr_changePower * discr_changePower * discr_changeDistr;
         int actionCount = discr_changeDistr * discr_changePower * discr_changePower;
 
         QLearner agent = new QLearner(stateCount, actionCount);
@@ -49,12 +51,21 @@ public class AFChallenger {
             System.out.println("progression: "+ time+"/"+trainingTime);
             Point2D point2D = getPosition();
             int neigh = findClosestNode(point2D);
-            //System.out.println("neighbour is: " + neigh);
-            //Random random2 = new Random();
             double delta = 0;//random2.nextInt(1001);
-            SimulationClientAF sc = new SimulationClientAF(SimulationClientAF.Case.CASE1, (int) point2D.getX(), (int) point2D.getY(), 118800.0, 200, neigh, delta);
+            int [] neigh_arr = {neigh, 0};
+            int[] x = {(int) point2D.getX(),0};
+            int[] y = {(int) point2D.getY(),0};
 
-            // Esplorazione epsilon-greedy
+            point2D = getPosition();
+            neigh = findClosestNode(point2D);
+            neigh_arr[1] = neigh;
+            x[1] = (int) point2D.getX();
+            y[1] = (int) point2D.getY();
+
+            //SimulationClientAF sc = new SimulationClientAF(SimulationClientAF.Case.CASE1, x, y, 118800.0, 200, neigh_arr, delta);
+            SimulationClientAF sc = new SimulationClientAF(SimulationClientAF.Case.UNKNOWN, x, y, 118800.0, 200, neigh_arr, delta);
+
+            // epsilon-greedy
             int actionId;
             if (random.nextDouble() < epsilon*(1/(time+1.0))) {
                 actionId = random.nextInt(actionCount);
@@ -65,23 +76,23 @@ public class AFChallenger {
                 //System.out.println("Agent exploits with action-" + actionId);
             }
 
-            // Decodifica dell'azione per ottenere i valori per powerAdd, powerSub e distributionChange
-            int[] powerAdd = RL.decodePowerAdd(actionId);   // L'agente sceglie direttamente powerAdd
-            int[] powerSub = RL.decodePowerSub(actionId);   // L'agente sceglie direttamente powerSub
-            int[] distributionChange = RL.decodeDistributionChange(actionId);  // L'agente sceglie direttamente distributionChange
+            // decode action to obtain powerAdd, powerSub e distributionChange
+            int powerAdd = RL.decodePowerAdd(actionId, 15);
+            int powerSub = RL.decodePowerSub(actionId, 15);
+            int distributionChange = RL.decodeDistributionChange(actionId, 15);
 
-            System.out.println(powerAdd[0]);
-            System.out.println(powerSub[0]);
-            System.out.println(distributionChange[0]);
-            // Assegna direttamente i valori decisi dall'agente
-            int[] currentPowerAdd = powerAdd;
-            int[] currentPowerSub = powerSub;
-            int[] currentDistribution = distributionChange;
+            System.out.println(powerAdd);
+            System.out.println(powerSub);
+            System.out.println(distributionChange);
 
-            // Crea l'oggetto di simulazione
+            int currentPowerAdd = powerAdd;
+            int currentPowerSub = powerSub;
+            int currentDistribution = distributionChange;
+
+            // simulation setup
             SimulationClient networkMgmt = new SimulationClient(sc.getSimulator());
 
-            // Feedback loop e connessione a probe/effector
+            // Feedback loop and probe/effector connection
             FeedbackLoopChallenger feedbackLoop = new FeedbackLoopChallenger();
             Probe probe = networkMgmt.getProbe();
             Effector effector = networkMgmt.getEffector();
@@ -114,26 +125,27 @@ public class AFChallenger {
                 finalResult.add(result.get(k));
             }
             finalResult.addAll(resultRecovery);
-            // Calcola la ricompensa in base alla nuova funzione
-            //double reward = calculateReward(result);
+
             double reward = globalReward(finalResult, true);
 
-            // Determina il nuovo stato basato sui risultati della simulazione
+            // get state
             double averageEnergy = finalResult.stream().mapToDouble(QoS::getEnergyConsumption).average().orElse(0.0);
             double averageLoss = finalResult.stream().mapToDouble(QoS::getPacketLoss).average().orElse(0.0);
 
-            int newStateId = getStateFromSimulation(averageEnergy, averageLoss, Objects.hash(powerAdd), Objects.hash(powerSub), Objects.hash(distributionChange), neigh);
+            int newStateId = getStateFromSimulation(averageEnergy, averageLoss, powerAdd, powerSub, distributionChange, neigh_arr);
 
-            // Aggiorna la lista di mosse e la Q-Table dell'agente
+            // update moves nd Q-Table
             moves.add(new Move(currentState, actionId, newStateId, reward));
             agent.update(currentState, actionId, newStateId, reward);
 
-            currentState = newStateId;  // Aggiorna lo stato corrente
+            currentState = newStateId;  // updateState
 
             //System.out.println("current powerAdd = " + currentPowerAdd + ", current powerSub = " + currentPowerSub + " , current distribution = " + currentDistribution + ", reward = " + reward);
 
-            csvWriter.writeQoSToCSV(finalResult, "ChallengerProgression/simulation"+time+"_neigh"+neigh+ "_stopAnomaly"+ stopIdx +".csv");
-
+            csvWriter.writeQoSToCSV(finalResult, "ChallengerProgression/simulation"+time+"_neigh"+Arrays.toString(neigh_arr)+ "_stopAnomaly"+ stopIdx +".csv");
+            WealthScore wealthScore = new WealthScore();
+            double score = wealthScore.calculateScore(finalResult);
+            writeOrUpdateScoreToCSV(time, score, "challenger.csv");
         }
     }
 

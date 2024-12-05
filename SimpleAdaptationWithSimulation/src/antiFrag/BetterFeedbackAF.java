@@ -23,6 +23,9 @@ import static antiFrag.Position.FindPositionAndNeighbour.getPosition;
 
 
 public class BetterFeedbackAF {
+    /**
+     * outdated
+     */
 
     SimulationClientAF networkMgmt;
     int bestj = 0;
@@ -294,7 +297,7 @@ public class BetterFeedbackAF {
 
     private void initC1(SimulationClientAF.Case c, int x, int y, double battery, int load, int niegh){
         // Create a simulation client object
-        networkMgmt = new SimulationClientAF(c,x,y,battery,load,niegh);
+        //networkMgmt = new SimulationClientAF(c,x,y,battery,load,niegh);
     }
 
     public BetterFeedbackAF(SimulationClientAF networkMgmt) {

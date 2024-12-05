@@ -3,6 +3,7 @@ package main;
 import antiFrag.AnomalyDetection.AnomalyDetection;
 import antiFrag.SimulationClientAF;
 import antiFrag.Utils.CsvWriter;
+import antiFrag.Utils.WealthScore;
 import deltaiot.client.Effector;
 import deltaiot.client.Probe;
 import deltaiot.client.SimulationClient;
@@ -11,11 +12,18 @@ import simulator.QoS;
 import simulator.Simulator;
 
 import java.awt.geom.Point2D;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Properties;
 
+import static antiFrag.BetterFeedbackAF.writeMotesToCsv;
+import static antiFrag.BetterFeedbackAF.writeQoSToCSV;
 import static antiFrag.Position.FindPositionAndNeighbour.findClosestNode;
 import static antiFrag.Position.FindPositionAndNeighbour.getPosition;
+import static antiFrag.Utils.CsvWriter.writeOrUpdateScoreToCSV;
 
 public class AFAdaptation {
     SimulationClient networkMgmt;
@@ -26,12 +34,24 @@ public class AFAdaptation {
 
         Point2D point2D = getPosition();
         int neigh = findClosestNode(point2D);
-        System.out.println("il vicino è: " + neigh);
-        SimulationClientAF sc = new SimulationClientAF(SimulationClientAF.Case.CASE1, (int)point2D.getX(), (int)point2D.getY(), 118800.0, 200, neigh);
+        double delta = 0;//random2.nextInt(1001);
+        int [] neigh_arr = {neigh, 0};
+        int[] x = {(int) point2D.getX(),0};
+        int[] y = {(int) point2D.getY(),0};
+
+        point2D = getPosition();
+        neigh = findClosestNode(point2D);
+        neigh_arr[1] = neigh;
+        x[1] = (int) point2D.getX();
+        y[1] = (int) point2D.getY();
+
+        //System.out.println("neigh: " + Arrays.toString(neigh_arr));
+        //SimulationClientAF sc = new SimulationClientAF(SimulationClientAF.Case.CASE1, x, y, 118800.0, 200, neigh_arr);
+        SimulationClientAF sc = new SimulationClientAF(SimulationClientAF.Case.UNKNOWN, x, y, 118800.0, 200, neigh_arr);
         // Create a simulation client object
         networkMgmt = new SimulationClient(sc.getSimulator());
-
-
+        //System.out.println(networkMgmt.getSimulator().getMoteWithId(16).getLinks());
+        //System.out.println(networkMgmt.getSimulator().getMoteWithId(17).getLinks());
 
         // Create Feedback loop
         //FeedbackLoop feedbackLoop = new FeedbackLoop();
@@ -40,7 +60,6 @@ public class AFAdaptation {
         // get probe and effectors
         Probe probe = networkMgmt.getProbe();
         Effector effector = networkMgmt.getEffector();
-
         // Connect probe and effectors with feedback loop
         feedbackLoop.setProbe(probe);
         feedbackLoop.setEffector(effector);
@@ -85,7 +104,13 @@ public class AFAdaptation {
         }
 
         finalResult.addAll(resultRecovery);
-        csvWriter.writeQoSToCSV(finalResult, "BetterPolicy/simulation"+i+"_neigh" +neigh+ "_stopAnomaly"+ stopIdx+".csv");
+        csvWriter.writeQoSToCSV(finalResult, "BetterPolicy/simulation"+i+"_neigh" + Arrays.toString(neigh_arr) + "_stopAnomaly"+ stopIdx+".csv");
+
+        WealthScore wealthScore = new WealthScore();
+        double score = wealthScore.calculateScore(finalResult);
+        writeOrUpdateScoreToCSV(i, score, "antifrag.csv");
+
+        //writeQoSToCSV(result, "AnomalyDetectionFiles1/qos_"+i+".csv");
     }
 
     public static void main(String[] args) {
@@ -108,6 +133,23 @@ public class AFAdaptation {
 
     public static void initAD(){
         anomalyDetection = new AnomalyDetection();
-        anomalyDetection.init();
+        anomalyDetection.init("AnomalyDetectionFiles");
+    }
+
+    public static List<String> getFolders(String configFilePath) {
+        List<String> folders = new ArrayList<>();
+        Properties properties = new Properties();
+
+        try (FileInputStream fis = new FileInputStream(configFilePath)) {
+            properties.load(fis);
+            String folderList = properties.getProperty("folders");
+            if (folderList != null) {
+                folders.addAll(Arrays.asList(folderList.split(",")));
+            }
+        } catch (IOException e) {
+            System.err.println("Error reading configuration file: " + e.getMessage());
+        }
+
+        return folders;
     }
 }
