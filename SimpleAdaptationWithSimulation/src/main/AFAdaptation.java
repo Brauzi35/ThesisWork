@@ -46,8 +46,8 @@ public class AFAdaptation {
         y[1] = (int) point2D.getY();
 
         //System.out.println("neigh: " + Arrays.toString(neigh_arr));
-        //SimulationClientAF sc = new SimulationClientAF(SimulationClientAF.Case.CASE1, x, y, 118800.0, 200, neigh_arr);
-        SimulationClientAF sc = new SimulationClientAF(SimulationClientAF.Case.UNKNOWN, x, y, 118800.0, 200, neigh_arr);
+        SimulationClientAF sc = new SimulationClientAF(SimulationClientAF.Case.CASE1, x, y, 118800.0, 200, neigh_arr);
+        //SimulationClientAF sc = new SimulationClientAF(SimulationClientAF.Case.UNKNOWN, x, y, 118800.0, 200, neigh_arr);
         // Create a simulation client object
         networkMgmt = new SimulationClient(sc.getSimulator());
         //System.out.println(networkMgmt.getSimulator().getMoteWithId(16).getLinks());

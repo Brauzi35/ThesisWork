@@ -23,7 +23,7 @@ public class SimpleAdaptation {
 	SimulationClient networkMgmt;
 	static int counter;
 	public void start(){
-		//BetterFeedbackAF betterFeedbackAF = new BetterFeedbackAF();
+
 		// Create a simulation client object
 		networkMgmt = new SimulationClient();
 		if(networkMgmt == null){
@@ -42,7 +42,7 @@ public class SimpleAdaptation {
 		feedbackLoop.setEffector(effector);
 
 		// StartFeedback loop
-		feedbackLoop.start();
+		feedbackLoop.start(new int[]{1, 1, 10});
 
 
 		//writeMotesToCsv(networkMgmt.getAllMotes(), "AnomalyDetectionFiles/motes_"+counter+".csv");

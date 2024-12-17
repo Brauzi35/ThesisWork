@@ -48,42 +48,12 @@ public class TwinInterrogation {
         return simul;
     }
 
-    public int[] start(){
-        boolean firstTime = true;
-        ArrayList<QoS> bestResult = null;
-
-        int bestj = 0;
-        int bestd = 0;
-        System.out.println("twin starting, at run: " + actualNetwork.getSimulator().getRunInfo().getRunNumber());
-
-        for(int i = 0; i<5;i++){
-            for(int j = 0; j<5; j++) {
-                //System.out.println("twinInterrogation!"+i+j);
-                //Simulator copy = new Simulator();
-                Simulator copy = buildCloneNetwork(actualNetwork);
 
 
-                //System.out.println("run number twin:"+copy.getRunInfo().getRunNumber());
-                BetterFeedbackAF betterFeedbackAF = new BetterFeedbackAF(new SimulationClientAF(copy));
-
-                ArrayList<QoS> temp = betterFeedbackAF.start(SimulationClientAF.Case.CASE1, j,i,firstTime, bestResult);
-                firstTime = false;
-
-                if(!temp.equals(bestResult)){
-                    bestj = j;
-                    bestd = i;
-                }
-
-                bestResult = temp;
-            }
-        }
-        int[] ret = {bestd, bestj};
-        return ret;
-    }
-
-    public int[] startRL(int[] prevConf, String path){
+    public int[] startRL(int[] prevConf, String path, double[] point){
         Simulator copy = buildCloneNetwork(actualNetwork);
         LoadTrainedAgent rl = new LoadTrainedAgent();
+
         //String path = "JsonRL/CASE1.json";
         List<Link> links = copy.getMoteWithId(16).getLinks();
         int neigh = 0;
@@ -100,15 +70,15 @@ public class TwinInterrogation {
             //System.err.println("anomaly case 1");
         }
 
-        return rl.interrogation(path, neighArr, copy, prevConf[0], prevConf[1],prevConf[2]);
+        return rl.interrogation(path, neighArr, copy, prevConf[0], prevConf[1],prevConf[2], point);
     }
 
-    public int[] startRecovery(int[] prevConf){
+    public int[] startRecovery(int[] prevConf, double[] point){
         Simulator copy = buildCloneNetwork(actualNetwork);
         LoadTrainedAgent rl = new LoadTrainedAgent();
         String path = "JsonRL/recoveryFromAnomaly.json"; //TODO it could be best to use costume recoveries
         int arr[] = {0,0};
-        return rl.interrogation(path, arr, copy, prevConf[0], prevConf[1],prevConf[2]);
+        return rl.interrogation(path, arr, copy, prevConf[0], prevConf[1],prevConf[2], point);
     }
 
     public void setActualNetwork(SimulationClient sc){

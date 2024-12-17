@@ -33,6 +33,7 @@ public class AFChallenger {
     static int discr_changeDistr = 5;
     static double epsilon = 1.0;
     static Random random = new Random();
+    static Random random2 = new Random();
     static private CsvWriter csvWriter = new CsvWriter();
 
 
@@ -62,17 +63,23 @@ public class AFChallenger {
             x[1] = (int) point2D.getX();
             y[1] = (int) point2D.getY();
 
-            //SimulationClientAF sc = new SimulationClientAF(SimulationClientAF.Case.CASE1, x, y, 118800.0, 200, neigh_arr, delta);
-            SimulationClientAF sc = new SimulationClientAF(SimulationClientAF.Case.UNKNOWN, x, y, 118800.0, 200, neigh_arr, delta);
+            SimulationClientAF sc = new SimulationClientAF(SimulationClientAF.Case.CASE1, x, y, 118800.0, 200, neigh_arr, delta);
+            //SimulationClientAF sc = new SimulationClientAF(SimulationClientAF.Case.UNKNOWN, x, y, 118800.0, 200, neigh_arr, delta);
 
             // epsilon-greedy
             int actionId;
+            sc.getAllMotes();
+            List<QoS> partialqos = sc.getNetworkQoS(1);
+            currentState = getStateFromSimulation(new double[]{partialqos.get(0).getPacketLoss(), partialqos.get(0).getEnergyConsumption()},neigh_arr);
             if (random.nextDouble() < epsilon*(1/(time+1.0))) {
                 actionId = random.nextInt(actionCount);
                 epsilon = decreaseEpsilon(epsilon);
                 //System.out.println("Agent explores with action-" + actionId);
             } else {
                 actionId = agent.selectAction(currentState).getIndex();
+                if(agent.getModel().getQ(currentState, actionId) == 0.1){
+                    actionId = random2.nextInt(216); //inducing casuality
+                }
                 //System.out.println("Agent exploits with action-" + actionId);
             }
 
@@ -101,6 +108,8 @@ public class AFChallenger {
             feedbackLoop.setNetwork(networkMgmt);
 
             networkMgmt = feedbackLoop.start(currentPowerAdd, currentPowerSub, currentDistribution, time);
+
+
             int stopIdx = feedbackLoop.getRecoveredTimestamp();
 
             ArrayList<QoS> result = networkMgmt.getNetworkQoS(96);
@@ -132,13 +141,13 @@ public class AFChallenger {
             double averageEnergy = finalResult.stream().mapToDouble(QoS::getEnergyConsumption).average().orElse(0.0);
             double averageLoss = finalResult.stream().mapToDouble(QoS::getPacketLoss).average().orElse(0.0);
 
-            int newStateId = getStateFromSimulation(averageEnergy, averageLoss, powerAdd, powerSub, distributionChange, neigh_arr);
-
+            //int newStateId = getStateFromSimulation(averageEnergy, averageLoss, powerAdd, powerSub, distributionChange, neigh_arr);
+            int newStateId = currentState;
             // update moves nd Q-Table
             moves.add(new Move(currentState, actionId, newStateId, reward));
             agent.update(currentState, actionId, newStateId, reward);
 
-            currentState = newStateId;  // updateState
+            //currentState = newStateId;  // updateState
 
             //System.out.println("current powerAdd = " + currentPowerAdd + ", current powerSub = " + currentPowerSub + " , current distribution = " + currentDistribution + ", reward = " + reward);
 

@@ -32,27 +32,27 @@ public class FeedbackLoop {
 		this.effector = effector;
 	}
 
-	public void start() {
+	public void start(int[] conf) {
 		for (int i = 0; i < 95; i++) {
-			monitor();
+			monitor(conf);
 		}
 	}
 
-	void monitor() {
+	void monitor(int[] conf) {
 		motes = probe.getAllMotes();
 
 		// perform analysis
-		analysis();
+		analysis(conf);
 	}
 
-	void analysis() {
+	void analysis(int[] conf) {
 
 		// analyze all link settings
 		boolean adaptationRequired = analyzeLinkSettings();
 
 		// if adaptation required invoke the planner
 		if (adaptationRequired) {
-			planning();
+			planning(conf);
 		}
 	}
 
@@ -72,7 +72,7 @@ public class FeedbackLoop {
 		return false;
 	}
 
-	void planning() {
+	void planning(int[] conf) {
 
 		// Go through all links
 		boolean powerChanging = false;
@@ -81,10 +81,10 @@ public class FeedbackLoop {
 			for (Link link : mote.getLinks()) {
 				powerChanging = false;
 				if (link.getSNR() > 0 && link.getPower() > 0) {
-					steps.add(new PlanningStep(Step.CHANGE_POWER, link, link.getPower() - 1));
+					steps.add(new PlanningStep(Step.CHANGE_POWER, link, link.getPower() - conf[0]));
 					powerChanging = true;
 				} else if (link.getSNR() < 0 && link.getPower() < 15) {
-					steps.add(new PlanningStep(Step.CHANGE_POWER, link, link.getPower() + 1));
+					steps.add(new PlanningStep(Step.CHANGE_POWER, link, link.getPower() + conf[1]));
 					powerChanging = true;
 				}
 			}
@@ -99,11 +99,11 @@ public class FeedbackLoop {
 						right.setDistribution(50);
 					}
 					if (left.getPower() > right.getPower() && left.getDistribution() < 100) {
-						steps.add(new PlanningStep(Step.CHANGE_DIST, left, left.getDistribution() + 10));
-						steps.add(new PlanningStep(Step.CHANGE_DIST, right, right.getDistribution() - 10));
+						steps.add(new PlanningStep(Step.CHANGE_DIST, left, left.getDistribution() + conf[2]));
+						steps.add(new PlanningStep(Step.CHANGE_DIST, right, right.getDistribution() - conf[2]));
 					} else if (right.getDistribution() < 100) {
-						steps.add(new PlanningStep(Step.CHANGE_DIST, right, right.getDistribution() + 10));
-						steps.add(new PlanningStep(Step.CHANGE_DIST, left, left.getDistribution() - 10));
+						steps.add(new PlanningStep(Step.CHANGE_DIST, right, right.getDistribution() + conf[2]));
+						steps.add(new PlanningStep(Step.CHANGE_DIST, left, left.getDistribution() - conf[2]));
 					}
 				}
 			}

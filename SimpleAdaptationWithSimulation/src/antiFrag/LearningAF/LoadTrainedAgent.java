@@ -27,25 +27,26 @@ public class LoadTrainedAgent {
 
 
 
-    public int[] interrogation(String pathJson, int[] neigh, Simulator actualNetwork, int currentPowerAdd, int currentPowerSub, int currentDistribution){ //TODO passare anche il tipo di anomalia
+    public int[] interrogation(String pathJson, int[] neigh, Simulator actualNetwork, int currentPowerAdd, int currentPowerSub, int currentDistribution, double[] point){
         // load scpecific agent (.json)
         QLearner trainedAgent = loadAgentFromJson(pathJson);
-
+        String policy = trainedAgent.getActionSelection();
+        policy = policy.replace("epsilon=0.1", "epsilon=0.0"); // Modifica epsilon
+        trainedAgent.setActionSelection(policy);
 
         if (trainedAgent != null) {
             System.out.println("Agent successfully loaded from JSON.");
 
 
-            List<QoS> currentSituation = actualNetwork.getQosValues();
-            double avg_en = getAverageEnergy(currentSituation);
-            double avg_loss = getAveragePacketLoss(currentSituation);
+
 
             // get current state
-            int currentState = getStateFromSimulation(avg_en, avg_loss, currentPowerAdd, currentPowerSub, currentDistribution, neigh);
+            //int currentState = getStateFromSimulation(avg_en, avg_loss, currentPowerAdd, currentPowerSub, currentDistribution, neigh);
+            int currentState = getStateFromSimulation(point, neigh);
 
             // get best action
             int actionId = trainedAgent.selectAction(currentState).getIndex();
-            System.out.println("Agent selects action-" + actionId);
+            System.out.println("Agent selects action-" + actionId + " state: " + currentState);
 
             // get policy from best action
             int powerAdd = decodePowerAdd(actionId, 16);

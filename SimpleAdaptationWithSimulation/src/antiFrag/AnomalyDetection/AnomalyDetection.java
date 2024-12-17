@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
 import org.apache.commons.math3.ml.distance.EuclideanDistance;
+import simulator.QoS;
 
 public class AnomalyDetection {
 
@@ -147,6 +148,41 @@ public class AnomalyDetection {
 
         //writeNormalModelToCsv();
 
+    }
+
+    public static double[] buildPoint(ArrayList<QoS> qos, int timestamp, List<domain.Mote> motes){
+        double[] point = new double[9]; //9 dimensions
+        // from qos
+        point[0] = qos.get(timestamp - 1).getPacketLoss();
+        point[1] = qos.get(timestamp - 1).getEnergyConsumption();
+        point[2] = qos.get(timestamp - 1).getNumNodesEnergy();
+        point[3] = qos.get(timestamp - 1).getNumNodesLoss();
+        point[4] = qos.get(timestamp - 1).getFairnessIndex();
+
+        // get aggregates values
+        double totBattery = 0.0;
+        double averagePower = 0.0;
+        double totalDistribution = 0.0;
+        int linkCount = 0;
+
+        //List<domain.Mote> motes = networkMgmt.getSimulator().getMotes();
+        for (domain.Mote m : motes) {
+            totBattery += m.getBatteryRemaining(); // remaining battery
+            List<domain.Link> links = m.getLinks();
+            for (domain.Link l : links) {
+                averagePower += l.getPowerNumber();      // power on link
+                totalDistribution += l.getDistribution(); // dist on link
+                linkCount++;
+            }
+        }
+
+        // from motes and links
+        point[5] = totBattery / motes.size();       // avg battery
+        point[6] = linkCount > 0 ? averagePower / linkCount : 0.0; // avg power
+        point[7] = linkCount > 0 ? totalDistribution / linkCount : 0.0; // avg dist
+        point[8] = motes.size();
+
+        return point;
     }
 
     public static double[] getState(File file, int count, int correspondentId) {

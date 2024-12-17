@@ -27,8 +27,8 @@ import static com.github.chen0040.rl.learning.qlearn.QLearner.fromJson;
 public class RL {
     static int discr_energyusageLevels = 10;
     static int discr_lossLevels = 10;
-    static int discr_changePower = 5; // #levels for `powerAdd` e `powerSub`
-    static int discr_changeDistr = 5;
+    static int discr_changePower = 6; // #levels for `powerAdd` e `powerSub`
+    static int discr_changeDistr = 6;
     static double epsilon = 1.0;
     static Random random = new Random();
 
@@ -38,10 +38,10 @@ public class RL {
 
     static int dimMotes = 15; //outdated
     static int actualDim = 15; //outdated
-    static int stateCount = discr_energyusageLevels * discr_lossLevels * 15*2;//discr_energyusageLevels * discr_lossLevels * discr_changePower * discr_changePower * discr_changeDistr;
+    public static int stateCount = discr_energyusageLevels * discr_lossLevels * 14*14;//discr_energyusageLevels * discr_lossLevels * discr_changePower * discr_changePower * discr_changeDistr;
     static int stateCountRecovery = discr_energyusageLevels * discr_lossLevels * 15;//discr_energyusageLevels * discr_lossLevels * discr_changePower * discr_changePower * discr_changeDistr;
 
-    static int actionCount = discr_changeDistr * discr_changePower * discr_changePower;
+    public static int actionCount = discr_changeDistr * discr_changePower * discr_changePower;
 
     static AnomalyDetection anomalyDetection = new AnomalyDetection();
 
@@ -67,10 +67,11 @@ public class RL {
 
 
         QLearner agent = new QLearner(stateCount, actionCount);
+        //QLearner agent = loadAgentFromJson("JsonRL/CASE1.json");
 
-        //startTraining(5000, agent, stateCount, actionCount, false, 0, "JsonRL/" + SimulationClientAF.Case.CASE1 + ".json", false, SimulationClientAF.Case.CASE1);
-        anomalyDetection.init("AnomalyDetectionFiles");
-        startTraining(1000, agent, stateCountRecovery, actionCount, false, 0, "JsonRL/" + "recoveryFromAnomaly" + ".json", true, SimulationClientAF.Case.CASE1);
+        startTraining(5000, agent, stateCount, actionCount, false, 0, "JsonRL/" + SimulationClientAF.Case.CASE1 + ".json", false, SimulationClientAF.Case.CASE1);
+        //anomalyDetection.init("AnomalyDetectionFiles");
+        //startTraining(1000, agent, stateCountRecovery, actionCount, false, 0, "JsonRL/" + "recoveryFromAnomaly" + ".json", true, SimulationClientAF.Case.CASE1);
         //agent = loadAgentFromJson("JsonRL/recoveryFromAnomaly.json");
         //startTraining(1000, agent, stateCount, actionCount, false, 0, "JsonRL/" + "recoveryFromAnomaly" + ".json", true, SimulationClientAF.Case.UNKNOWN);
 
@@ -116,7 +117,7 @@ public class RL {
         QLearner agent = loadAgentFromJson(similarAgent);
         System.out.println("similarAgent " + similarAgent);
         System.out.println("pathNewLearner " + pathNewLearner);
-        startTraining(1000, agent, stateCount, actionCount, false, 0, pathNewLearner, false, SimulationClientAF.Case.UNKNOWN);
+        startTraining(3000, agent, stateCount, actionCount, false, 0, pathNewLearner, false, SimulationClientAF.Case.UNKNOWN);
     }
 
     public void fromScratchLearning(String pathNewLearner){
@@ -125,7 +126,7 @@ public class RL {
 
     }
 
-    private static SimulationClientAF createTrainingNetwork(boolean forceSimulationClient, int forcedneigh, SimulationClientAF.Case c){
+    public static SimulationClientAF createTrainingNetwork(boolean forceSimulationClient, int forcedneigh, SimulationClientAF.Case c){
         Point2D point2D = getPosition();
         int neigh = findClosestNode(point2D);
 
@@ -226,13 +227,18 @@ public class RL {
 
             // Esplorazione epsilon-greedy
             int actionId;
+            sc.getAllMotes();
+            List<QoS> partialqos = sc.getNetworkQoS(1);
+            currentState = getStateFromSimulation(new double[]{partialqos.get(0).getPacketLoss(), partialqos.get(0).getEnergyConsumption()},current_neigh);
+
+            //currentState = getStateFromSimulation();
             if (random.nextDouble() < epsilon) {
-                actionId = random.nextInt(actionCount);
-                System.out.println("Agent explores with action-" + actionId);
+                actionId = Math.abs(random.nextInt(actionCount));
+                System.out.println("Agent explores with action-" + actionId + " state: " + currentState);
                 epsilon = decreaseEpsilon(epsilon);
             } else {
                 actionId = agent.selectAction(currentState).getIndex();
-                System.out.println("Agent exploits with action-" + actionId);
+                System.out.println("Agent exploits with action-" + actionId + " state: " + currentState);
             }
             //System.out.println("dim motes "+ sc.getSimulator().getMotes());
 
@@ -276,19 +282,14 @@ public class RL {
                 avgReward += reward;
             }
 
-            // Find new state
-            double averageEnergy = result.stream().mapToDouble(QoS::getEnergyConsumption).average().orElse(0.0);
-            double averageLoss = result.stream().mapToDouble(QoS::getPacketLoss).average().orElse(0.0);
 
-
-            int newStateId = getStateFromSimulation(averageEnergy, averageLoss, powerAdd, powerSub, distributionChange, current_neigh);
-
+            int newStateId = 0; //terminal state
             // Update moves list and agent Q-Table
             moves.add(new Move(currentState, actionId, newStateId, reward));
             agent.update(currentState, actionId, newStateId, reward);
 
 
-            currentState = newStateId;  // update current state
+            //currentState = newStateId;  // update current state
 
             System.out.println("current powerAdd = " + currentPowerAdd +
                     ", current powerSub = " + currentPowerSub +
@@ -319,12 +320,25 @@ public class RL {
     // Support methods:
 
 
-    public static int getStateFromSimulation(double energy, double loss, int powerAdd, int powerSub, int distChange, int[] neigh) {
+    /*public static int getStateFromSimulation(double energy, double loss, int powerAdd, int powerSub, int distChange, int[] neigh) {
         int energyState = (int) (energy / 10); // 10 intervals - 10 in 10
         int lossState = (int) (loss * 10); // 0-1, 0.1 intervals
 
         // hashing all parameters
         int state = Objects.hash(energyState, lossState, Arrays.hashCode(neigh));
+        return state;
+    }
+
+     */
+
+
+    public static int getStateFromSimulation(double[] point, int[] neigh){
+        int lossState = (int) (point[0] * 10); // 1-10, 1-2-3... intervals (#10)
+        int energyState = (int) (point[1] / 10); // 10 intervals - 10 in 10
+        //neigh[1] = 0;
+        // hashing all parameters
+        //int state = Objects.hash(energyState, lossState, Arrays.hashCode(neigh));
+        int state = Objects.hash(energyState, lossState);
         return state;
     }
 
@@ -453,15 +467,18 @@ public class RL {
 
     public static double calculateRewardEnergyUsage(ArrayList<QoS> results) {
         double reward = 0.0;
-        int counter = 0;
+        double previousEnergy = Double.MAX_VALUE;
+
         for (QoS result : results) {
             double currentEnergy = result.getEnergyConsumption();
+            reward += 1/currentEnergy;
 
-            reward -=  currentEnergy;
-            counter++;
-            if(counter == 10){
-                break;
-            }
+            //if(currentEnergy> previousEnergy + 50){
+                //reward -= 0.1;
+            //}
+            previousEnergy = currentEnergy;
+
+
         }
 
         return reward;
@@ -470,8 +487,8 @@ public class RL {
 
     public static double calculateLossReward(List<QoS> results) {
         double reward = 0.0;
-
-        for (QoS result : results) {
+        List<QoS> trunc = results;//results.subList(0, 30);
+        for (QoS result : trunc) {
             double currentLoss = result.getPacketLoss();
 
             reward += (1.0 - currentLoss)*100;

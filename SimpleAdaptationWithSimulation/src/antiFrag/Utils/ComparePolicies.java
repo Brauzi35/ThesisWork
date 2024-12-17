@@ -8,6 +8,7 @@ import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.chart.plot.XYPlot;
 import org.jfree.chart.renderer.category.BoxAndWhiskerRenderer;
+import org.jfree.chart.title.TextTitle;
 import org.jfree.data.statistics.DefaultBoxAndWhiskerCategoryDataset;
 import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
@@ -23,7 +24,7 @@ import java.util.List;
 
 public class ComparePolicies {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         String betterPolicyDir = "BetterPolicy";
         String standardPolicyDir = "StandardPolicy";
         String outputDir = "ComparisonCharts";
@@ -35,7 +36,10 @@ public class ComparePolicies {
         //buildStyledBoxPlotGraphs(betterPolicyDir, standardPolicyDir, outputDir);
 
         buildGraphs(betterPolicyDir, ChallengerPolicyDir, ChallengeroutputDir);
-        buildStyledBoxPlotGraphs(betterPolicyDir, ChallengerPolicyDir, ChallengeroutputDir);
+        //buildStyledBoxPlotGraphs(betterPolicyDir, ChallengerPolicyDir, ChallengeroutputDir);
+
+        createBoxplotComparison(betterPolicyDir, ChallengerPolicyDir, true, "boxplot_before_stop.png");
+        createBoxplotComparison(betterPolicyDir, ChallengerPolicyDir, false, "boxplot_after_stop.png");
 
     }
 
@@ -232,7 +236,7 @@ public class ComparePolicies {
                 packetLoss.add(Double.parseDouble(line[1]));
                 energyConsumption.add(Double.parseDouble(line[2]));
                 numNodesEnergy.add(Double.parseDouble(line[3]));
-                fairness.add(Double.parseDouble(line[4]));
+                fairness.add(Double.parseDouble(line[5]));
             }
         }
     }
@@ -268,4 +272,169 @@ public class ComparePolicies {
 
         return chart;
     }
+
+    public static void createBoxplotComparison(String betterPolicyDir, String challengerPolicyDir,
+                                               boolean beforeStop, String outputFile) throws IOException {
+        // Dataset separati per ogni feature
+        DefaultBoxAndWhiskerCategoryDataset feature1Dataset = new DefaultBoxAndWhiskerCategoryDataset();
+        DefaultBoxAndWhiskerCategoryDataset feature2Dataset = new DefaultBoxAndWhiskerCategoryDataset();
+        DefaultBoxAndWhiskerCategoryDataset feature3Dataset = new DefaultBoxAndWhiskerCategoryDataset();
+        DefaultBoxAndWhiskerCategoryDataset feature4Dataset = new DefaultBoxAndWhiskerCategoryDataset();
+
+        // Leggi i dati dalle cartelle
+        List<double[]> betterPolicyData = readPolicyData(betterPolicyDir, beforeStop);
+        List<double[]> challengerPolicyData = readPolicyData(challengerPolicyDir, beforeStop);
+
+        // Aggiungi i dati ai dataset
+        addDataToFeatureDataset(feature1Dataset, betterPolicyData, challengerPolicyData, 0, "Feature 1");
+        addDataToFeatureDataset(feature2Dataset, betterPolicyData, challengerPolicyData, 1, "Feature 2");
+        addDataToFeatureDataset(feature3Dataset, betterPolicyData, challengerPolicyData, 2, "Feature 3");
+        addDataToFeatureDataset(feature4Dataset, betterPolicyData, challengerPolicyData, 3, "Feature 4");
+
+        // Crea i grafici boxplot per ogni feature con estetica migliorata
+        JFreeChart feature1Chart = createStyledBoxplotChart("Packet Loss Comparison", "Policy", "Packet Loss", feature1Dataset);
+        JFreeChart feature2Chart = createStyledBoxplotChart("Energy Consumption Comparison", "Policy", "Energy Consumption", feature2Dataset);
+        JFreeChart feature3Chart = createStyledBoxplotChart("Nodes Exceeding Energy Usage Comparison", "Policy", "# Nodes", feature3Dataset);
+        JFreeChart feature4Chart = createStyledBoxplotChart("Fairness Index Comparison", "Policy", "Fairness Index", feature4Dataset);
+
+        // Salva i grafici come un'unica immagine
+        saveChartsAsSingleImage(outputFile, feature1Chart, feature2Chart, feature3Chart, feature4Chart);
+    }
+
+    // Metodo per creare grafici boxplot con uno stile migliorato
+    private static JFreeChart createStyledBoxplotChart(String title, String categoryAxisLabel, String valueAxisLabel,
+                                                       DefaultBoxAndWhiskerCategoryDataset dataset) {
+        JFreeChart chart = ChartFactory.createBoxAndWhiskerChart(
+                title,
+                categoryAxisLabel,
+                valueAxisLabel,
+                dataset,
+                true
+        );
+
+        // Personalizzazione della grafica
+        CategoryPlot plot = chart.getCategoryPlot();
+        plot.setBackgroundPaint(Color.white); // Sfondo bianco
+        plot.setRangeGridlinePaint(Color.lightGray); // Griglia leggera
+        plot.setDomainGridlinePaint(Color.lightGray);
+
+        // Modifica stile dei box e whiskers
+        BoxAndWhiskerRenderer renderer = (BoxAndWhiskerRenderer) plot.getRenderer();
+        renderer.setFillBox(true);
+        renderer.setSeriesPaint(0, new Color(255, 140, 0)); // Rosso chiaro (Better Policy)
+        renderer.setSeriesPaint(1, new Color(100, 149, 237)); // Blu chiaro (Standard Policy)
+        renderer.setMeanVisible(false); // Nasconde il valore medio
+        renderer.setMaximumBarWidth(0.1); // Larghezza delle box
+
+        // Personalizzazione dei titoli e font
+        chart.setTitle(new TextTitle(title, new Font("SansSerif", Font.BOLD, 14)));
+        plot.getDomainAxis().setLabelFont(new Font("SansSerif", Font.PLAIN, 12));
+        plot.getRangeAxis().setLabelFont(new Font("SansSerif", Font.PLAIN, 12));
+
+        return chart;
+    }
+
+    public static List<double[]> readPolicyData(String dirPath, boolean beforeStop) throws IOException {
+        File dir = new File(dirPath);
+        File[] files = dir.listFiles((d, name) -> name.matches("simulation\\d+_neigh\\[\\d+, \\d+\\]_stopAnomaly\\d+\\.csv"));
+
+        List<double[]> featureAverages = new ArrayList<>();
+
+        if (files != null) {
+            for (File file : files) {
+                List<double[]> data = readFile(file, beforeStop);
+                featureAverages.addAll(data);
+            }
+        }
+
+        return featureAverages;
+    }
+
+    public static List<double[]> readFile(File file, boolean beforeStop) throws IOException {
+        List<double[]> rows = new ArrayList<>();
+        int stopAnomalyRow = extractStopAnomaly(file.getName());
+        int currentRow = 0;
+
+        try (CSVReader reader = new CSVReader(new FileReader(file))) {
+            String[] line;
+            boolean isHeader = true;
+            while ((line = reader.readNext()) != null) {
+                // Salta l'header
+                if (isHeader) {
+                    isHeader = false;
+                    continue;
+                }
+
+                // Filtra righe in base a beforeStop o afterStop
+                if (beforeStop && currentRow >= stopAnomalyRow) break;
+                if (!beforeStop && currentRow < stopAnomalyRow) {
+                    currentRow++;
+                    continue;
+                }
+
+                // Estrai colonne richieste (1, 2, 3, 5)
+                double col1 = Double.parseDouble(line[1]);
+                double col2 = Double.parseDouble(line[2]);
+                double col3 = Double.parseDouble(line[3]);
+                double col5 = Double.parseDouble(line[5]);
+
+                rows.add(new double[]{col1, col2, col3, col5});
+                currentRow++;
+            }
+        }
+
+        return rows;
+    }
+
+    public static int extractStopAnomaly(String fileName) {
+        // Estrai il valore di stopAnomalyX dal nome del file
+        String stopAnomalyStr = fileName.substring(fileName.indexOf("stopAnomaly") + 11, fileName.lastIndexOf(".csv"));
+        return Integer.parseInt(stopAnomalyStr);
+    }
+
+    public static void addDataToFeatureDataset(DefaultBoxAndWhiskerCategoryDataset dataset,
+                                               List<double[]> betterPolicyData, List<double[]> challengerPolicyData,
+                                               int featureIndex, String featureName) {
+        // Dati per Better Policy
+        List<Double> betterValues = new ArrayList<>();
+        for (double[] row : betterPolicyData) {
+            betterValues.add(row[featureIndex]);
+        }
+        dataset.add(betterValues, "Better Policy", featureName);
+
+        // Dati per Challenger Policy
+        List<Double> challengerValues = new ArrayList<>();
+        for (double[] row : challengerPolicyData) {
+            challengerValues.add(row[featureIndex]);
+        }
+        dataset.add(challengerValues, "Challenger Policy", featureName);
+    }
+
+    public static void saveChartsAsSingleImage(String outputFile, JFreeChart chart1, JFreeChart chart2,
+                                               JFreeChart chart3, JFreeChart chart4) throws IOException {
+        int width = 800;   // Larghezza di ogni singolo grafico
+        int height = 600;  // Altezza di ogni singolo grafico
+        int rows = 2;      // Due righe di grafici
+        int cols = 2;      // Due colonne di grafici
+
+        // Creazione dell'immagine combinata con dimensioni appropriate
+        BufferedImage combinedImage = new BufferedImage(width * cols, height * rows, BufferedImage.TYPE_INT_ARGB);
+
+        Graphics2D g2 = combinedImage.createGraphics();
+
+        // Disegna ogni grafico nella posizione appropriata
+        chart1.draw(g2, new Rectangle(0, 0, width, height));
+        chart2.draw(g2, new Rectangle(width, 0, width, height));
+        chart3.draw(g2, new Rectangle(0, height, width, height));
+        chart4.draw(g2, new Rectangle(width, height, width, height));
+
+        g2.dispose();
+
+        // Salva l'immagine combinata come file PNG
+        File output = new File(outputFile);
+        ImageIO.write(combinedImage, "png", output);
+        System.out.println("Saved combined chart to: " + output.getAbsolutePath());
+    }
+
+
 }

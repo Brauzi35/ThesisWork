@@ -323,7 +323,7 @@ public class FeedbackLoopAFReactive {
 
                 //bestConf = twin.start();
                 if(firstTime) {
-                    bestConf = twin.startRL(prevConf, path);
+                    bestConf = twin.startRL(prevConf, path, point);
                     prevConf = bestConf;
                     firstTime = false;
                 }
@@ -394,7 +394,7 @@ public class FeedbackLoopAFReactive {
             TwinInterrogation twin = new TwinInterrogation(clientCopy);
 
             //bestConf = twin.start();
-            bestConf = twin.startRecovery(prevConf);
+            bestConf = twin.startRecovery(prevConf, point);
             prevConf = bestConf;
 
         }else{
@@ -445,7 +445,7 @@ public class FeedbackLoopAFReactive {
             feedbackLoop.setEffector(effector);
 
             // StartFeedback loop
-            feedbackLoop.start(); //Start fa partire il loop
+            feedbackLoop.start(new int[]{1, 1, 10}); //Start fa partire il loop
 
             ArrayList<QoS> result = sc.getNetworkQoS(96);
 

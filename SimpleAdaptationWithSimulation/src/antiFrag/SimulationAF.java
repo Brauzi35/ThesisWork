@@ -103,7 +103,7 @@ public class SimulationAF {
         feedbackLoop.setEffector(effector);
 
         // StartFeedback loop
-        feedbackLoop.start(); //Start fa partire il loop
+        feedbackLoop.start(new int[]{1, 1, 10}); //Start fa partire il loop
 
         ArrayList<QoS> result = networkMgmt.getNetworkQoS(96);
         CsvWriter wrt = new CsvWriter();
